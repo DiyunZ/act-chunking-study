@@ -267,8 +267,16 @@ def run_task(task: dict) -> dict:
     from lerobot.utils.random_utils import set_seed
 
     torch.set_num_threads(1)
-    torch.backends.cudnn.benchmark = True  # same backend settings as lerobot-eval
-    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cuda.matmul.allow_tf32 = True  # as in lerobot-eval
+    if task["deterministic"]:
+        # Fixed kernels, so reruns of a condition give identical episodes. The cuBLAS setting
+        # must be in place before this worker first touches CUDA, which happens in _load().
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        torch.use_deterministic_algorithms(True, warn_only=True)
+    else:
+        torch.backends.cudnn.benchmark = True  # as in lerobot-eval
     set_seed(1000)
 
     cond = Condition(**task["condition"])
@@ -355,6 +363,7 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=min(8, os.cpu_count() or 1))
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--videos-per-condition", type=int, default=0)
+    parser.add_argument("--deterministic", action="store_true", help="deterministic GPU kernels (reproducible reruns)")
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--hub-repo", default=None, help="dataset repo to sync results to, e.g. user/act-chunking-study")
     parser.add_argument("--sync-every", type=int, default=16, help="sync to the Hub after this many finished tasks")
@@ -401,6 +410,7 @@ def main() -> None:
                     "n_seeds": n,
                     "n_envs": min(args.n_envs, n),
                     "n_videos": args.videos_per_condition if i == 0 else 0,
+                    "deterministic": args.deterministic,
                     "out_path": str(out_path),
                 }
             )
@@ -410,6 +420,7 @@ def main() -> None:
     meta = {
         "grid": args.grid,
         "seeds": args.seeds,
+        "deterministic": args.deterministic,
         "checkpoint": args.checkpoint_label or args.checkpoint,
         "torch": torch.__version__,
         "device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else args.device,

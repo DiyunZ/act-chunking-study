@@ -11,6 +11,7 @@
 #   hf jobs run --flavor l4x1 --timeout 45m --secrets HF_TOKEN --name act-validate \
 #     huggingface/lerobot-gpu:latest bash -c "$(cat scripts/jobs/validate_harness.sh)"
 set -euo pipefail
+export PYTHONUNBUFFERED=1
 cd /lerobot
 REPO=FTG64/act-chunking-study
 STUDY=/tmp/study
@@ -22,27 +23,36 @@ CODE="$STUDY/code/scripts"
 python src/lerobot/processor/migrate_policy_normalization.py \
   --pretrained-path lerobot/act_aloha_sim_transfer_cube_human --output-dir /tmp/official > /tmp/migrate.log 2>&1
 
+# Print memory use every 20 s so the job log shows headroom (the first attempt was OOM-killed:
+# lerobot-eval keeps every frame of its 10 rendered episodes in RAM, about 1.8 GB per 5-env batch).
+(while true; do echo "[mem $(date +%H:%M:%S)] $(free -m | awk '/Mem:/ {print $3 " MB used of " $2 " MB"}')"; sleep 20; done) &
+MEM_PID=$!
+trap 'kill $MEM_PID 2>/dev/null || true' EXIT
+
 # In-process envs for lerobot-eval as well; see the note at the top of chunk_eval.py.
 common=(--policy.path=/tmp/official --env.type=aloha --env.task=AlohaTransferCube-v0
         --eval.n_episodes=50 --eval.batch_size=5 --eval.use_async_envs=false --policy.device=cuda --seed=1000)
-pids=()
-lerobot-eval "${common[@]}" --output_dir="$OUT/lerobot/full" > "$OUT/lerobot_full.log" 2>&1 & pids+=($!)
-lerobot-eval "${common[@]}" --policy.n_action_steps=25 --output_dir="$OUT/lerobot/replan25" \
-  > "$OUT/lerobot_replan25.log" 2>&1 & pids+=($!)
-lerobot-eval "${common[@]}" --policy.n_action_steps=10 --output_dir="$OUT/lerobot/replan10" \
-  > "$OUT/lerobot_replan10.log" 2>&1 & pids+=($!)
-lerobot-eval "${common[@]}" --policy.n_action_steps=1 --policy.temporal_ensemble_coeff=0.01 \
-  --output_dir="$OUT/lerobot/te" > "$OUT/lerobot_te.log" 2>&1 & pids+=($!)
+run_pair() {  # two lerobot-eval runs at a time
+  local pids=() fail=0
+  for spec in "$@"; do
+    local name=${spec%%:*} extra=${spec#*:}
+    # shellcheck disable=SC2086
+    lerobot-eval "${common[@]}" $extra --output_dir="$OUT/lerobot/$name" > "$OUT/lerobot_$name.log" 2>&1 & pids+=($!)
+  done
+  for p in "${pids[@]}"; do wait "$p" || fail=1; done
+  [ "$fail" -eq 0 ] || { tail -n 25 "$OUT"/lerobot_*.log; exit 1; }
+}
+echo "== lerobot-eval: full and replan25"
+run_pair "full:" "replan25:--policy.n_action_steps=25"
+echo "== lerobot-eval: replan10 and te"
+run_pair "replan10:--policy.n_action_steps=10" "te:--policy.n_action_steps=1 --policy.temporal_ensemble_coeff=0.01"
+echo "== harness: 4 modes at zero delay"
 python "$CODE/chunk_eval.py" --checkpoint /tmp/official --checkpoint-label official --grid validation \
-  --seeds 1000:1050 --block 25 --n-envs 5 --workers 4 --out "$OUT/harness" > "$OUT/harness.log" 2>&1 & pids+=($!)
-fail=0
-for p in "${pids[@]}"; do wait "$p" || fail=1; done
-if [ "$fail" -ne 0 ]; then tail -n 25 "$OUT"/*.log; exit 1; fi
-
+  --seeds 1000:1050 --block 25 --n-envs 5 --workers 4 --out "$OUT/harness" 2>&1 | tee "$OUT/harness.log" | grep -E "tasks|\[|finished"
+echo "== harness: displacement check"
 python "$CODE/chunk_eval.py" --checkpoint /tmp/official --checkpoint-label official --grid core \
   --only full_d00_m4 --seeds 1000:1010 --block 10 --n-envs 5 --workers 1 --videos-per-condition 2 \
-  --out "$OUT/displacement_check" > "$OUT/displacement_check.log" 2>&1 \
-  || { tail -n 40 "$OUT/displacement_check.log"; exit 1; }
+  --out "$OUT/displacement_check" 2>&1 | tee "$OUT/displacement_check.log" | grep -E "tasks|\[|finished"
 
 echo "== harness vs lerobot-eval (seeds 1000-1049)"
 python "$CODE/compare_harness.py" --lerobot "$OUT/lerobot" --harness "$OUT/harness" --out "$OUT/validation_summary.json"

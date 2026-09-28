@@ -252,3 +252,22 @@ Official checkpoint, seeds 1000–1049, zero delay, no displacement:
 1. Evaluate each checkpoint on seeds 1000–1199 as soon as it lands (25k, 50k, 75k, 100k).
 2. Once the design is approved, build the harness and validate it at zero delay against
    `lerobot-eval` on the same seeds.
+
+---
+
+## Day 2 — 2026-09-28
+
+**Goal:** finish the baseline milestone, i.e. a training curve, checkpoint success rates and a
+reproduction of the official checkpoint.
+
+### Done
+
+| Item | Evidence |
+|---|---|
+| Baseline training finished on `l4x1`: 100k steps in 3 h 18 min (8.5 steps/s), final loss 0.047 (L1 0.046, KL about 0), about $2.64. Checkpoints `025000`/`050000`/`075000`/`100000` and the final model are in the private repo `FTG64/act_aloha_transfer_cube`. | job `6ab9df5152d0dbd7f1d9f7ea`; `results/day02/training_log_ours.csv` (500 rows, one every 200 steps) |
+| `scripts/summarize.py` added. It produces tables (Wilson CIs, paired McNemar against full chunk, failure stages) and the figures `delay.png`, `displacement.png` and `checkpoints.png`. Series colors come from the dataviz reference palette and pass `validate_palette.js` (5 adjacent slots, light mode). Three slots are below 3:1 contrast, which is offset by marker shapes and the Markdown table. | `scripts/summarize.py` |
+| `--deterministic` option added to the harness: cuDNN benchmark off, deterministic kernels, `CUBLAS_WORKSPACE_CONFIG`. It is opt-in until Diyun decides. | `scripts/chunk_eval.py` |
+
+Observation: the KL term went to about 0 by the end of training, so the CVAE latent is barely used
+(posterior collapse, common for ACT with `kl_weight=10`). At inference ACT feeds a zero latent
+either way, so this does not change evaluation.
