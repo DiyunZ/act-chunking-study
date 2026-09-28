@@ -206,9 +206,46 @@ Diyun approved short local debug runs (1–2 episodes). Training and experiments
   job reports each mode's first-contact steps over 50 seeds. The window will be adjusted from that
   data, subject to Diyun's approval.
 
+**Cloud validation of the harness** (job `6ab9e5346b030d633f69b769`; evidence in `results/day01/validation_official/`)
+
+An earlier attempt (job `6ab9e30b6b030d633f69b705`, $0.10) was OOM-killed. It ran four
+`lerobot-eval` processes and four harness workers at once, and each `lerobot-eval` process holds
+the frames of its 10 rendered episodes in RAM (about 7 GB per process). The rerun kept at most
+two `lerobot-eval` processes at a time (peak 13.7 GB of 30.9 GB). The harness phase peaked at
+4.9 GB with 4 workers × 5 envs, which leaves room for 7–8 workers.
+
+Official checkpoint, seeds 1000–1049, zero delay, no displacement:
+
+| Mode | lerobot-eval successes | harness successes | same outcome |
+|---|---|---|---|
+| full chunk (`n_action_steps=100`) | 35/50 | 35/50 | 50/50 |
+| replan every 25 | 38/50 | 39/50 | 43/50 |
+| replan every 10 | **4/50** | **4/50** | 50/50 |
+| temporal ensembling (0.01) | 35/50 | 35/50 | 50/50 |
+
+- **The harness reproduces the official evaluator's success rate in every mode.** Summed rewards
+  are rarely identical on CUDA: the median gap is 6 and only 3 of 50 match in full mode. On MPS
+  they were bit-identical. Suspected cause: nondeterministic GPU kernels (`lerobot-eval` sets
+  `cudnn.benchmark = True`), with small numerical differences amplified by contact dynamics.
+  This still needs to be confirmed (see the open decisions).
+- **Finding: replanning every 10 steps nearly breaks ACT even with no delay.** The official
+  evaluator shows it too, at 4/50. Only 13 of 50 episodes ever touch the cube, and the median
+  first touch comes at step 239, against 145 in full-chunk mode. Replanning every 25 steps is
+  fine (38/50). Working hypothesis for the failure analysis: the arm moves too slowly when only
+  the first 10 actions of each chunk are ever executed.
+- **Contact timing.** First right-gripper contact by mode (minimum / 5th percentile / median
+  step): full 84 / 92 / 145, replan25 118 / 125 / 184, TE 117 / 127 / 166, and replan10 152
+  (only 13/50 episodes touch). In full mode, 5 of 50 episodes touch before step 100 (steps 84,
+  86, 90, 95 and 98), so the planned 70–100 window is too late.
+- **Displacement mechanics.** All 10 moves were exactly 0.040 m, with `arms_unchanged_by_move`
+  true every time. Two of the 10 moves came after the gripper had already made contact (seeds
+  1000 and 1009), which confirms the window problem.
+
 ### Open decisions (Diyun)
 
-- The displacement window, once the contact-timing data is in.
+- New displacement window (proposal: steps 50–75).
+- Whether to add a replan-every-50 mode, so that the replanning interval becomes a sweep of 100 / 50 / 25 / 10.
+- Whether to run the harness with deterministic GPU kernels for run-to-run reproducibility.
 
 ### Next session (Day 2)
 

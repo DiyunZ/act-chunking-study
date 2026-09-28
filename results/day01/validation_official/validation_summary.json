@@ -1,0 +1,34 @@
+[
+ {
+  "mode": "full",
+  "n": 50,
+  "lerobot_successes": 35,
+  "harness_successes": 35,
+  "same_outcome": 50,
+  "same_sum_reward": 3
+ },
+ {
+  "mode": "replan25",
+  "n": 50,
+  "lerobot_successes": 38,
+  "harness_successes": 39,
+  "same_outcome": 43,
+  "same_sum_reward": 6
+ },
+ {
+  "mode": "replan10",
+  "n": 50,
+  "lerobot_successes": 4,
+  "harness_successes": 4,
+  "same_outcome": 50,
+  "same_sum_reward": 37
+ },
+ {
+  "mode": "te",
+  "n": 50,
+  "lerobot_successes": 35,
+  "harness_successes": 35,
+  "same_outcome": 50,
+  "same_sum_reward": 14
+ }
+]

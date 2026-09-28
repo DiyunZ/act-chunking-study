@@ -1,0 +1,24 @@
+== lerobot-eval: full and replan25
+== lerobot-eval: replan10 and te
+== harness: 4 modes at zero delay
+== harness: displacement check
+== harness vs lerobot-eval (seeds 1000-1049)
+{'mode': 'full', 'n': 50, 'lerobot_successes': 35, 'harness_successes': 35, 'same_outcome': 50, 'same_sum_reward': 3}
+{'mode': 'replan25', 'n': 50, 'lerobot_successes': 38, 'harness_successes': 39, 'same_outcome': 43, 'same_sum_reward': 6}
+{'mode': 'replan10', 'n': 50, 'lerobot_successes': 4, 'harness_successes': 4, 'same_outcome': 50, 'same_sum_reward': 37}
+{'mode': 'te', 'n': 50, 'lerobot_successes': 35, 'harness_successes': 35, 'same_outcome': 50, 'same_sum_reward': 14}
+== timing and displacement checks
+first right-gripper contact, full_d00_m0: 50/50 episodes touch; min 84, p5 92, p10 102, median 145; before step 70: 0, before step 100: 5
+first right-gripper contact, replan25_d00_m0: 50/50 episodes touch; min 118, p5 125, p10 145, median 184; before step 70: 0, before step 100: 0
+first right-gripper contact, replan10_d00_m0: 13/50 episodes touch; min 152, p5 154, p10 157, median 239; before step 70: 0, before step 100: 0
+first right-gripper contact, te_d00_m0: 41/50 episodes touch; min 117, p5 127, p10 127, median 166; before step 70: 0, before step 100: 0
+seed 1000: move at step 95, moved 0.04 m, arms unchanged True, reward before move 1, success True
+seed 1001: move at step 85, moved 0.04 m, arms unchanged True, reward before move 0, success False
+seed 1002: move at step 93, moved 0.04 m, arms unchanged True, reward before move 0, success True
+seed 1003: move at step 97, moved 0.04 m, arms unchanged True, reward before move 0, success True
+seed 1004: move at step 97, moved 0.04 m, arms unchanged True, reward before move 0, success False
+seed 1005: move at step 76, moved 0.04 m, arms unchanged True, reward before move 0, success True
+seed 1006: move at step 100, moved 0.04 m, arms unchanged True, reward before move 0, success False
+seed 1007: move at step 79, moved 0.04 m, arms unchanged True, reward before move 0, success False
+seed 1008: move at step 87, moved 0.04 m, arms unchanged True, reward before move 0, success True
+seed 1009: move at step 91, moved 0.04 m, arms unchanged True, reward before move 1, success True
