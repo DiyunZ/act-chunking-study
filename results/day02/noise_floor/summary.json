@@ -1,0 +1,12 @@
+{
+ "lerobot_eval_default": {
+  "n": 25,
+  "same_outcome": 25,
+  "same_sum_reward": 3
+ },
+ "harness_deterministic": {
+  "n": 25,
+  "same_outcome": 25,
+  "same_sum_reward": 7
+ }
+}

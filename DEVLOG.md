@@ -337,3 +337,23 @@ execution, zero delay, no displacement.
 - `core_official`: job `6aba653a6b030d633f69ccee`, t4-medium, 320 tasks (40 conditions × 8 seed blocks)
 - `core_ours100k`: job `6aba73e46b030d633f69cea2`, t4-medium, same grid, checkpoint `100000`
 - Noise floor: job `6aba741b52d0dbd7f1da1f88`
+
+### GPU noise floor (job `6aba741b52d0dbd7f1da1f88`, t4-medium; `results/day02/noise_floor/summary.json`)
+
+Official checkpoint, full chunk, seeds 1000–1024. The same command was run twice on one machine.
+
+| Runner | Same outcome | Same summed reward |
+|---|---|---|
+| `lerobot-eval` (default: `cudnn.benchmark`) | 25/25 | 3/25 |
+| harness, `--deterministic` | 25/25 | 7/25 |
+
+- `lerobot-eval` is itself not reproducible at trajectory level on GPU. That explains the
+  harness-vs-`lerobot-eval` reward gaps in the Day 1 validation: they are noise, not a harness bug.
+- **The deterministic mode did not deliver bit-identical reruns.** The logs show no PyTorch
+  "no deterministic implementation" warning, so the remaining variation comes from outside
+  PyTorch's determinism checks. Candidates are cuBLAS, EGL rendering and MuJoCo on this
+  hardware; none is confirmed.
+- What is reproducible is the **outcome level**: 25/25 in both runners, and 199/200 between two
+  deterministic harness runs on different T4 machines (full chunk, zero delay: 163 vs 162
+  successes). All reported statistics are outcome-based, so conclusions are unaffected. The
+  writeup will state trajectory-level nondeterminism as a limitation.
