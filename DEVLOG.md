@@ -288,3 +288,52 @@ either way, so this does not change evaluation.
 
 Local 2-episode check of the new defaults (`replan50_d00_m4`): the moves happened at steps 71
 and 63, each moved 0.040 m with the arms unchanged, and nothing had touched the cube before the move.
+
+### Baseline milestone (Days 1–3): met on Day 2
+
+Checkpoint evaluation (job `6aba653a52d0dbd7f1da1c3b`, t4-medium, deterministic harness): full-chunk
+execution, zero delay, no displacement.
+
+| Checkpoint | Seeds | Success | 95% Wilson CI |
+|---|---|---|---|
+| ours 25k | 1000–1199 | 107/200 = 53.5% | 47–60% |
+| ours 50k | 1000–1199 | 138/200 = 69.0% | 62–75% |
+| ours 75k | 1000–1199 | 144/200 = 72.0% | 65–78% |
+| ours 100k | 1000–1199 | 149/200 = 74.5% | 68–80% |
+| official | 1000–1499 | 417/500 = 83.4% | 80–86% |
+
+- **Official result reproduced:** 417/500 against the published 415/500 on the same seeds. Outcomes
+  agree on 472/500 seeds; the discordant split is 15/13 (McNemar p = 0.85).
+- **Our retrained model vs the official checkpoint** on seeds 1000–1199: 149 vs 163. Only ours
+  succeeds on 16 seeds, only the official one on 30 (exact McNemar p = 0.054). That is
+  borderline, not significant at 0.05. With a single training run we cannot separate
+  training-seed variance from anything else, and the writeup will say so.
+- **The AGENT_GUIDE's 5–10 epochs are not enough here.** 25k steps (10 epochs at batch 8) reach
+  53.5%; performance keeps improving until 100k steps (40 epochs, the official recipe).
+- **Failure stages** (ours at 100k): 7 failures never touched the cube, 14 touched it but failed
+  to lift, 30 lifted it but no handover was attempted, and 0 attempted a handover and dropped the
+  cube. Every checkpoint fails before the left gripper makes contact.
+- **Contact timing** (min / 5th percentile): ours 81 / 93, official 83 / 95. No episode touched
+  the cube at or before step 75, so the 50–75 window holds for both models.
+- Figure: `results/day02/figures/checkpoints.png` (training loss and success per checkpoint; the
+  official line is scored on the same 200 seeds).
+
+### Incidents
+
+1. **No l4x1 hardware.** The first checkpoint-eval job waited more than 9 minutes for an L4 and
+   was canceled at no cost. Jobs now run on `t4-medium` (8 vCPU, 30 GB, T4, $0.60/h). All
+   conditions of a model run in one job, so each model's results come from a single GPU type.
+2. **Hung job: my bug.** In `eval_checkpoints.sh` a bare `wait` also waited for the background
+   memory monitor, which never exits. The job sat idle for about 20 minutes after its real work
+   was done; total job cost about $0.55, of which about $0.20 was idle. The results of steps 1–2
+   were already on the Hub. The noise-floor and determinism checks moved to
+   `scripts/jobs/noise_floor.sh`, which waits on specific PIDs.
+3. **Local network blip.** A DNS failure on the Mac killed the local log-streaming commands; the
+   cloud jobs were unaffected. Jobs are now submitted with `--detach` and tracked by pollers that
+   retry on network errors.
+
+### Core experiments launched
+
+- `core_official`: job `6aba653a6b030d633f69ccee`, t4-medium, 320 tasks (40 conditions × 8 seed blocks)
+- `core_ours100k`: job `6aba73e46b030d633f69cea2`, t4-medium, same grid, checkpoint `100000`
+- Noise floor: job `6aba741b52d0dbd7f1da1f88`

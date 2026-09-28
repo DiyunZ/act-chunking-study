@@ -222,13 +222,23 @@ def sweep_figure(by_ckpt: dict[str, list[dict]], kind: str, path: Path) -> None:
 
 
 def checkpoint_figure(ckpt_runs: list[Path], training_log: Path | None, path: Path) -> dict:
-    points = []
+    import re
+
+    runs = {}
     for run in ckpt_runs:
         eps = [e for e in load_run(run) if e["mode_name"] == "full" and e["delay"] == 0 and e["displacement_cm"] == 0]
         if eps:
-            points.append((eps[0]["checkpoint"], cell(eps)))
-    ours = sorted((int(name.rsplit("_", 1)[-1]), c) for name, c in points if name.startswith("ours"))
-    reference = [(name, c) for name, c in points if not name.startswith("ours")]
+            runs[eps[0]["checkpoint"]] = eps
+    ours_runs = {int(m.group(1)): eps for name, eps in runs.items() if (m := re.search(r"ours_(\d+)", name))}
+    ours = sorted((step, cell(eps)) for step, eps in ours_runs.items())
+    ours_seeds = {e["seed"] for eps in ours_runs.values() for e in eps}
+    # Reference checkpoints are scored on the same seeds as our checkpoints so the comparison is paired.
+    reference = []
+    for name, eps in runs.items():
+        if re.search(r"ours_\d+", name):
+            continue
+        shared = [e for e in eps if e["seed"] in ours_seeds] or eps
+        reference.append((name.replace("ckpt_", ""), cell(shared)))
     n_panels = 1 + (training_log is not None)
     fig, axes = plt.subplots(1, n_panels, figsize=(5.2 * n_panels, 3.6), squeeze=False)
     fig.patch.set_facecolor(SURFACE)
@@ -253,13 +263,14 @@ def checkpoint_figure(ckpt_runs: list[Path], training_log: Path | None, path: Pa
         err = np.array([[100 * (c["rate"] - c["lo"]) for _, c in ours], [100 * (c["hi"] - c["rate"]) for _, c in ours]])
         ax.errorbar(x, y, yerr=err, color="#2a78d6", linewidth=2, elinewidth=1, capsize=0, marker="o", markersize=7,
                     markeredgecolor=SURFACE, markeredgewidth=1.5, zorder=3)
-        for (s, c), xi, yi in zip(ours, x, y):
-            ax.annotate(f"{100 * c['rate']:.0f}%", (xi, yi), textcoords="offset points", xytext=(0, 9),
-                        ha="center", fontsize=9, color=TEXT_2)
+        for i, ((s, c), xi, yi) in enumerate(zip(ours, x, y)):  # beside the point, clear of the CI bar
+            last = i == len(ours) - 1
+            ax.annotate(f"{100 * c['rate']:.1f}%", (xi, yi), textcoords="offset points", xytext=(-8 if last else 8, -2),
+                        ha="right" if last else "left", va="top", fontsize=9, color=TEXT_2)
     for name, c in reference:
         ax.axhline(100 * c["rate"], color=MUTED, linewidth=1)
-        ax.text(ax.get_xlim()[0] if not ours else x.min(), 100 * c["rate"] + 1.5,
-                f"{name}: {100 * c['rate']:.1f}% (n={c['n']})", fontsize=9, color=TEXT_2)
+        ax.text(x.min() if ours else 0, 100 * c["rate"] - 2, f"{name} checkpoint, same seeds: {100 * c['rate']:.1f}%",
+                fontsize=9, color=TEXT_2, va="top")
     ax.set_ylim(0, 100)
     ax.set_xlabel("training step (thousands)")
     ax.set_ylabel("success rate (%)")
