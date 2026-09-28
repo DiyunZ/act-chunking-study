@@ -3,7 +3,8 @@
 Project: how an ACT policy's action-chunk execution holds up under inference delay and
 mid-episode disturbance (LeRobot, ALOHA sim transfer cube).
 
-Timebox: Day 1 = 2026-09-27. Freeze at the end of Day 14 = 2026-10-10 (dates to be confirmed by Diyun).
+Timebox: Day 1 = 2026-09-27, with a hard freeze at the end of Day 14 (2026-10-10). Diyun
+(2026-09-27): stopping early is fine once the results are in, and the Mac can run around the clock.
 
 Every entry records what was done, the evidence, and each technical decision as
 *chose / rejected / why*.
@@ -48,6 +49,26 @@ Reference numbers from the Hub: the official checkpoint scored **83.0%** over 50
    official run seed by seed (`scripts/compare_with_official.py`).
 5. **Task flag.** `--env.task=AlohaTransferCube-v0` must be passed explicitly; the aloha env
    defaults to the insertion task.
+6. **Baseline training recipe (decided by Diyun: option C).** Use the official recipe
+   (100k steps, batch 8, seed 1000), save a checkpoint every 25k steps, and evaluate each
+   checkpoint on seeds 1000–1199. A single run then answers two questions: whether the official
+   result reproduces on this machine, and whether the AGENT_GUIDE's 5–10 epochs (12.5k–25k
+   steps here) would have been enough. It also gives a steps-vs-success curve.
+   - Rejected A (official recipe with no intermediate evals) because it answers only the first
+     question.
+   - Rejected B (25k steps only) because a lower success rate could not be attributed to the
+     shorter run rather than to something else.
+   - The current `ACTConfig` defaults were diffed against the official `train_config.json`. The
+     policy and optimizer are identical, neither run uses an LR scheduler, and the official run
+     also decoded video with PyAV.
+   - One deliberate difference: the official run evaluated in simulation during training
+     (`eval_freq=20000`). Here training has no env attached and checkpoints are evaluated
+     afterwards on fixed seeds. This changes only the random-number stream, not the recipe.
+7. **Perturbation timing input.** In the 50 human demos, the right gripper is at its widest
+   opening at step 68 (median). It closes on the cube at step 153 (median; earliest 105).
+   The left gripper closes for the handover at step 298 (median). A mid-episode cube
+   displacement therefore belongs in roughly steps 70–100: the arm is approaching and no demo
+   has started grasping. This still has to be checked against the policy's own timing.
 
 ### Commands
 
@@ -80,14 +101,26 @@ lerobot-train --dataset.repo_id=lerobot/aloha_sim_transfer_cube_human \
   --output_dir=../outputs/train/speedtest_mps --job_name=speedtest_mps
 ```
 
+```bash
+# Baseline training, official recipe (started 2026-09-27 21:53, about 8 h on MPS)
+caffeinate -is lerobot-train --dataset.repo_id=lerobot/aloha_sim_transfer_cube_human \
+  --dataset.video_backend=pyav --policy.type=act --policy.device=mps \
+  --policy.push_to_hub=false --batch_size=8 --steps=100000 --save_freq=25000 \
+  --log_freq=200 --num_workers=4 --wandb.enable=false --seed=1000 \
+  --output_dir=../outputs/train/act_tc_official_recipe --job_name=act_tc_official_recipe
+```
+
+Environment note: importing both OpenCV and PyAV prints macOS `objc` warnings about duplicate
+`AVF*` classes, because both bundle libavdevice. Nothing has crashed; keep an eye on it.
+
 ### Open decisions (Diyun)
 
-- Training recipe for our own baseline (options and trade-offs in the Day 1 chat summary).
-- Daily time budget.
-- Confirm the timebox dates above.
+- Design of the core experiment (Days 4–7): the delay model, the execution modes, the
+  perturbation, the episode counts, and whether to also run the official checkpoint. The
+  proposal is in the Day 1 chat.
 
 ### Next session (Day 2)
 
-Start the chosen training run overnight. Then evaluate its checkpoints on seeds 1000–1199
-(200 episodes each) and compare them with the official run using
-`scripts/compare_with_official.py`.
+1. Evaluate each checkpoint on seeds 1000–1199 as soon as it lands (25k, 50k, 75k, 100k).
+2. Once the design is approved, build the harness and validate it at zero delay against
+   `lerobot-eval` on the same seeds.
