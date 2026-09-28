@@ -357,3 +357,6 @@ Official checkpoint, full chunk, seeds 1000–1024. The same command was run twi
   deterministic harness runs on different T4 machines (full chunk, zero delay: 163 vs 162
   successes). All reported statistics are outcome-based, so conclusions are unaffected. The
   writeup will state trajectory-level nondeterminism as a limitation.
+- Decision (Diyun, 2026-09-28): **option A**. Accept outcome-level reproducibility and document
+  the trajectory-level nondeterminism as a limitation. No further diagnosis (option B, a
+  step-by-step divergence check, was declined).
