@@ -57,12 +57,28 @@ class Condition:
         return f"{mode}_d{self.delay:02d}_m{self.displacement_cm:g}"
 
 
-def build_grid(name: str) -> list[Condition]:
+def parse_modes(names: list[str] | None) -> list[tuple[str, int | None]]:
+    """'full', 'te' or 'replan<k>' -> (mode, k); None -> the default MODES."""
+    if not names:
+        return list(MODES)
+    out = []
+    for n in names:
+        if n in ("full", "te"):
+            out.append((n, None))
+        elif n.startswith("replan") and n[6:].isdigit():
+            out.append(("replan", int(n[6:])))
+        else:
+            raise ValueError(f"unknown mode {n!r}")
+    return out
+
+
+def build_grid(name: str, modes: list[tuple[str, int | None]] | None = None) -> list[Condition]:
+    modes = modes or list(MODES)
     if name == "validation":
-        return [Condition(mode, k) for mode, k in MODES]
+        return [Condition(mode, k) for mode, k in modes]
     if name == "core":
-        delay_sweep = [Condition(mode, k, delay=d) for mode, k in MODES for d in DELAYS]
-        displacement_sweep = [Condition(mode, k, displacement_cm=m) for mode, k in MODES for m in DISPLACEMENTS_CM]
+        delay_sweep = [Condition(mode, k, delay=d) for mode, k in modes for d in DELAYS]
+        displacement_sweep = [Condition(mode, k, displacement_cm=m) for mode, k in modes for m in DISPLACEMENTS_CM]
         return delay_sweep + displacement_sweep
     raise ValueError(f"unknown grid {name!r}")
 
@@ -146,7 +162,7 @@ class ChunkExecutor(PreTrainedPolicy):
 class CubeDisplacement(gym.Wrapper):
     """Moves the cube once per seeded episode and records when each reward stage is first reached.
 
-    The move happens at a step drawn uniformly from DISPLACEMENT_WINDOW. Its direction is drawn
+    The move happens at a step drawn uniformly from `window` (inclusive). Its direction is drawn
     uniformly among the directions that keep the cube inside CUBE_REGION, so the new position is
     one the policy saw during training. All draws depend only on the episode seed, so every
     execution mode faces the same perturbation. Episodes begun by vector-env autoreset
@@ -156,9 +172,11 @@ class CubeDisplacement(gym.Wrapper):
     touches it, 4 transfer succeeded (the episode terminates).
     """
 
-    def __init__(self, env: gym.Env, displacement_m: float, seed_offset: int = 10_000):
+    def __init__(self, env: gym.Env, displacement_m: float, window: tuple[int, int] = DISPLACEMENT_WINDOW,
+                 seed_offset: int = 10_000):
         super().__init__(env)
         self.displacement_m = displacement_m
+        self.window = window
         self.seed_offset = seed_offset
         self.records: list[dict] = []
         self._episode: dict | None = None
@@ -198,7 +216,7 @@ class CubeDisplacement(gym.Wrapper):
         if seed is None:
             return obs, info
         rng = np.random.default_rng(seed + self.seed_offset)
-        t_move = int(rng.integers(DISPLACEMENT_WINDOW[0], DISPLACEMENT_WINDOW[1] + 1))
+        t_move = int(rng.integers(self.window[0], self.window[1] + 1))
         start_xy = self._cube_xy()
         moving = self.displacement_m > 0
         delta = self._sample_delta(rng, start_xy) if moving else np.zeros(2)
@@ -282,7 +300,7 @@ def run_task(task: dict) -> dict:
     cond = Condition(**task["condition"])
     env_cfg, policy, preprocessor, postprocessor, env_pre, env_post = _load(task["checkpoint"], task["device"])
     vec = make_env(env_cfg, n_envs=task["n_envs"], use_async_envs=False)[env_cfg.type][0]
-    vec.envs = [CubeDisplacement(e, cond.displacement_cm / 100.0) for e in vec.envs]
+    vec.envs = [CubeDisplacement(e, cond.displacement_cm / 100.0, window=tuple(task['window'])) for e in vec.envs]
     executor = ChunkExecutor(policy, cond.mode, delay=cond.delay, k=cond.k)
     videos_dir = Path(task["out_path"]).with_suffix("") if task["n_videos"] else None
 
@@ -357,6 +375,9 @@ def main() -> None:
     parser.add_argument("--checkpoint-label", default=None, help="name recorded in the results")
     parser.add_argument("--grid", choices=("validation", "core"), required=True)
     parser.add_argument("--only", nargs="*", default=None, help="run only these condition names from the grid")
+    parser.add_argument("--modes", nargs="*", default=None, help="execution modes, e.g. full replan50 replan25 replan10 te")
+    parser.add_argument("--window", default=f"{DISPLACEMENT_WINDOW[0]}:{DISPLACEMENT_WINDOW[1]}",
+                        help="displacement step window start:end (inclusive)")
     parser.add_argument("--seeds", default="1000:1200", help="start:stop, stop exclusive")
     parser.add_argument("--block", type=int, default=25, help="seeds per task")
     parser.add_argument("--n-envs", type=int, default=5, help="envs per task (one batched forward pass)")
@@ -387,7 +408,8 @@ def main() -> None:
             if (Path(tmp) / hub_path).exists():
                 shutil.copytree(Path(tmp) / hub_path, args.out, dirs_exist_ok=True)
 
-    grid = build_grid(args.grid)
+    window = tuple(map(int, args.window.split(":")))
+    grid = build_grid(args.grid, parse_modes(args.modes))
     if args.only:
         unknown = set(args.only) - {c.name for c in grid}
         if unknown:
@@ -411,6 +433,7 @@ def main() -> None:
                     "n_envs": min(args.n_envs, n),
                     "n_videos": args.videos_per_condition if i == 0 else 0,
                     "deterministic": args.deterministic,
+                    "window": list(window),
                     "out_path": str(out_path),
                 }
             )
@@ -421,6 +444,8 @@ def main() -> None:
         "grid": args.grid,
         "seeds": args.seeds,
         "deterministic": args.deterministic,
+        "window": list(window),
+        "modes": [c for c in dict.fromkeys(f"replan{k}" if m == "replan" else m for m, k in parse_modes(args.modes))],
         "checkpoint": args.checkpoint_label or args.checkpoint,
         "torch": torch.__version__,
         "device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else args.device,

@@ -9,6 +9,8 @@
 #   GRID     validation | core            ONLY   optional space-separated condition names
 #   SEEDS    start:stop                   WORKERS / NENVS / BLOCK   parallelism settings
 #   VIDEOS   videos per condition (default 0)
+#   MODES    optional space-separated modes (default: chunk_eval.py's MODES), e.g. "full replan50 replan25 replan10 te"
+#   WINDOW   displacement step window start:end (default: chunk_eval.py's)   DETERMINISTIC=1 for fixed GPU kernels
 #
 # Submit from the repo root after uploading scripts/ to the dataset repo as code/scripts/, e.g.:
 #   hf jobs run --flavor l4x1 --timeout 3h --secrets HF_TOKEN --name act-grid \
@@ -20,7 +22,8 @@ cd /lerobot
 REPO=FTG64/act-chunking-study
 STUDY=/tmp/study
 : "${CKPT:?}" "${LABEL:?}" "${RUN:?}" "${GRID:?}" "${SEEDS:?}"
-WORKERS=${WORKERS:-4}; NENVS=${NENVS:-5}; BLOCK=${BLOCK:-25}; VIDEOS=${VIDEOS:-0}; ONLY=${ONLY:-}
+WORKERS=${WORKERS:-7}; NENVS=${NENVS:-5}; BLOCK=${BLOCK:-25}; VIDEOS=${VIDEOS:-0}; ONLY=${ONLY:-}
+MODES=${MODES:-}; WINDOW=${WINDOW:-}; DETERMINISTIC=${DETERMINISTIC:-0}
 
 (while true; do echo "[mem $(date +%H:%M:%S)] $(free -m | awk '/Mem:/ {print $3 " MB used of " $2 " MB"}')"; sleep 60; done) &
 MEM_PID=$!
@@ -38,9 +41,12 @@ else
 fi
 echo "== policy ready: $LABEL ($POLICY)"
 
-only_args=()
-if [ -n "$ONLY" ]; then only_args=(--only $ONLY); fi  # word-splitting intended
+extra=()  # word-splitting of $ONLY and $MODES is intended
+if [ -n "$ONLY" ]; then extra+=(--only $ONLY); fi
+if [ -n "$MODES" ]; then extra+=(--modes $MODES); fi
+if [ -n "$WINDOW" ]; then extra+=(--window "$WINDOW"); fi
+if [ "$DETERMINISTIC" = "1" ]; then extra+=(--deterministic); fi
 python "$STUDY/code/scripts/chunk_eval.py" --checkpoint "$POLICY" --checkpoint-label "$LABEL" --grid "$GRID" \
-  "${only_args[@]}" --seeds "$SEEDS" --block "$BLOCK" --n-envs "$NENVS" --workers "$WORKERS" \
+  "${extra[@]}" --seeds "$SEEDS" --block "$BLOCK" --n-envs "$NENVS" --workers "$WORKERS" \
   --videos-per-condition "$VIDEOS" --out "/tmp/$RUN" --hub-repo "$REPO"
 echo "== done: results/$RUN in $REPO"
