@@ -402,3 +402,58 @@ Figures: `results/core/official/delay.png` and `displacement.png`. Tables: `summ
 
 `core_ours100k` (job `6aba73e46b030d633f69cea2`) had 272/320 tasks synced at 12:30 CDT and will hit
 its 4 h timeout. It will be resubmitted with the same `RUN`, and the harness skips finished tasks.
+
+### Core results: both models (`results/core/both/`)
+
+`core_ours100k` (job `6aba73e46b030d633f69cea2`) also reached its 4 h timeout after all 320 tasks
+had synced, so no resubmission was needed. It passed the same data checks: 40 × 200 episodes, 0
+bad moves, 0 contacts before a move.
+
+Success rate (%), ours at 100k:
+
+| Mode | 0 ms | 40 | 100 | 200 | 400 ms | | 0 cm | 2 | 4 | 6 cm |
+|---|---|---|---|---|---|---|---|---|---|---|
+| full chunk | 75.0 | 76.0 | 73.5 | 72.5 | 71.5 | | 75.0 | 65.0 | 42.5 | 18.5 |
+| replan 50 | 80.5 | 83.0 | 85.5 | 84.0 | 74.0 | | 80.5 | 70.0 | 47.0 | 26.5 |
+| replan 25 | 73.5 | 75.0 | 73.0 | 59.0 | 54.0 | | 73.5 | 78.0 | 73.0 | 61.5 |
+| replan 10 | 6.0 | 6.0 | 11.0 | 26.5 | 12.0 | | 6.0 | 3.0 | 3.0 | 3.5 |
+| temporal ensembling | 74.5 | 75.0 | 76.0 | 76.0 | 77.0 | | 74.5 | 64.5 | 47.0 | 21.0 |
+
+Official-checkpoint findings re-tested on our model (paired exact McNemar tests; official | ours):
+
+| Finding | Official | Ours | Holds in both? |
+|---|---|---|---|
+| TE unaffected by latency (0 → 400 ms) | 142 → 136, p = 0.21 | 149 → 154, p = 0.38 | yes |
+| Replan 25 hurt most by latency (0 → 400 ms) | 150 → 116, p = 8e-5 | 147 → 108, p = 5e-6 | yes |
+| Replan 25 below full chunk at 400 ms | 29/51, p = 0.018 | 20/55, p = 7e-5 | yes |
+| Full chunk collapses at 6 cm | 162 → 40 | 150 → 37 | yes |
+| TE collapses at 6 cm | 142 → 53 | 149 → 42 | yes |
+| TE no better than full chunk at 6 cm | 33/20, p = 0.098 | 23/18, p = 0.53 | yes |
+| Replan 25 far better than full chunk at 6 cm | 106/10, p = 2e-21 | 97/11, p = 2e-18 | yes |
+| Replan 25 little affected by 6 cm | 150 → 136, p = 0.15 | 147 → 123, p = 0.016 | partly: −7 vs −12 points, against −53 to −61 for full chunk and TE |
+| Latency improves replan 10 (0 → 200 ms) | 13 → 41, p = 4e-5 | 12 → 53, p = 3e-8 | yes |
+| Full chunk hurt by latency | 162 → 138, p = 4e-4 | 150 → 143, p = 0.34 | **no**, model-dependent |
+| TE below full chunk at 0 ms | 18/38, p = 0.011 | 34/35, p = 1 | **no**, model-dependent |
+
+**Robust conclusions (replicated on two independently trained checkpoints):**
+
+- Temporal ensembling makes ACT insensitive to up to 400 ms of observation latency, but it
+  rejects a moved target no better than full-chunk execution.
+- Replanning every 25 steps is the only mode that keeps succeeding after the cube moves 6 cm
+  (61–68% against 18–27% for the others), and it pays for this with the largest latency penalty
+  (−17 to −20 points at 400 ms).
+- Replanning every 10 steps collapses to about 6%, and latency makes it better.
+
+What depends on the checkpoint: whether full-chunk execution degrades with latency, the ranking
+of modes at zero latency, and replan 50's advantage on our model.
+
+Cloud cost so far: about $8.8, from the job runtimes (including about $0.55 for the canceled T4
+checkpoint-eval job, whose runtime the job list does not show).
+
+### Next (Days 8–14 scope, started early)
+
+1. Failure analysis:
+   - where each mode fails, by reward stage;
+   - the replan-10 speed hypothesis (measure arm speed and time to first contact);
+   - the TE weighting hypothesis (rerun TE with a coefficient that favors recent predictions).
+2. Side-by-side demo video, one-page writeup, README.
