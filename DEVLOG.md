@@ -494,3 +494,30 @@ episodes) and the outcomes match the cloud runs. Seed choice: 24 seeds show this
 models while all three modes succeed without the move; 1018 was picked because the move is large
 and diagonal and so easy to see. Composed by `scripts/make_video.py` (PIL for the text, since
 Homebrew's ffmpeg has no drawtext).
+
+### Item 2, replan-10 mechanism (part 2: closed-loop trajectories), done
+
+Jobs `diag_official` / `diag_ours100k` (t4-medium, 50 seeds, right-arm joints and gripper-cube
+distance logged for 200 steps; `scripts/analyze_trajectories.py`, `results/analysis/trajectories.json`).
+Medians over episodes for the approach phase (steps 0–150); official / ours:
+
+| Condition | Joint speed (rad/step) | Path efficiency | Reversal share | Gripper–cube at step 150 (m) |
+|---|---|---|---|---|
+| full chunk, 0 ms | 0.0118 / 0.0124 | 0.59 / 0.53 | 0.118 / 0.105 | 0.150 / 0.150 |
+| full chunk, 200 ms | 0.0118 / 0.0127 | 0.59 / 0.50 | 0.123 / 0.107 | 0.150 / 0.151 |
+| replan 25, 0 ms | 0.0152 / 0.0156 | 0.47 / 0.45 | 0.120 / 0.112 | 0.169 / 0.155 |
+| replan 10, 0 ms | **0.0046 / 0.0052** | **0.15 / 0.10** | **0.171 / 0.170** | **0.340 / 0.347** |
+| replan 10, 200 ms | 0.0139 / 0.0166 | 0.41 / 0.40 | 0.168 / 0.157 | 0.191 / 0.178 |
+
+**Conclusion (both models): replan 10 fails because the arm dithers in place in closed loop.** It
+moves at about 40% of full-chunk speed, and only 10–15% of its joint-space path is net progress,
+with about 50% more direction reversals. At step 150 the gripper is still about 0.34 m from the cube,
+roughly where it started. At 200 ms latency, time alignment executes chunk indices 10–19 instead of
+0–9, and speed and efficiency recover to near full-chunk levels. The open-loop chunk profile
+(start only 8–21% slower) does not explain this on its own. What breaks is re-anchoring a new
+chunk on the current state every 10 steps. Success stays low even at 200 ms (20%), so a second
+failure remains after contact; the reward stages for that are in the core data.
+
+Full-chunk kinematics are identical at 0 and 200 ms: latency only shifts the start of each chunk.
+Replan 25 moves faster than full chunk but less efficiently (0.45–0.47): it makes more
+corrections and reaches the cube later.
