@@ -49,8 +49,9 @@ latency of 0–400 ms, and a mid-episode displacement of the target of 2–6 cm.
   reproducible at the outcome level but not at trajectory level, and this is also true of
   `lerobot-eval` itself.
 - **Statistics.** Each condition uses the same 200 seeds, which allows paired exact McNemar
-  tests; intervals are 95% Wilson intervals. In total: 40 conditions × 2 checkpoints = 16,000
-  episodes on T4 GPUs.
+  tests; intervals are 95% Wilson intervals. The main grid is 40 conditions × 2 checkpoints =
+  16,000 episodes. On top of that come 2,400 episodes for the ensembling-weight test and 500
+  with logged arm trajectories, all on T4 GPUs through Hugging Face Jobs. Total cloud cost for the project, training included, was about $11.
 
 ## Results
 
@@ -76,6 +77,9 @@ Findings that hold on both checkpoints:
    −17 to −20 points at 400 ms, and is worse than full chunk there (p < 0.02).
 3. **Replanning every 0.2 s collapses to about 6%, and latency makes it better** (6% → 26.5% at
    200 ms, p < 1e-4).
+4. **Ensembling's lack of reactivity comes from its default weights.** Weighting recent predictions
+   (coefficient −0.05 instead of 0.01) raises success at 6 cm from 21–26.5% to 57.5–68% and keeps
+   the latency robustness. The cost is 8–11 points of nominal success.
 
 Two results depend on the checkpoint: whether full-chunk execution degrades with latency (official
 p < 0.001, ours p = 0.34), and how the modes rank without latency.
@@ -100,8 +104,25 @@ p < 0.001, ours p = 0.34), and how the modes rank without latency.
 - **Handover.** Of the 7,324 failed episodes across all 80 conditions, none got as far as
   left-gripper contact. Every failure is a missed cube, a failed lift, or a lift with no handover
   attempt.
-- **Why ensembling does not react.** *(TE-weight experiment in progress: coefficients 0 and −0.05,
-  which favor recent predictions.)*
+- **Why ensembling does not react: its weights favor old plans.** ACT averages all predictions
+  for the current step with weights exp(−c·i), where i = 0 is the oldest. The default c = 0.01
+  weights old predictions most, so after the cube moves, the executed action is still dominated by
+  plans made before the move. Changing only c, on the same 200 seeds (official / ours):
+
+  | TE weight coefficient | Nominal | 6 cm displacement | 400 ms latency |
+  |---|---|---|---|
+  | +0.01 (ACT default, favors old) | 71 / 74.5% | 26.5 / 21% | 68 / 77% |
+  | 0 (uniform) | 71.5 / 78.5% | 36 / 33.5% | 70.5 / 78% |
+  | −0.05 (favors recent) | 60 / 66.5% | **57.5 / 68%** | **71.5 / 80%** |
+
+  - Favoring recent predictions restores reactivity: 21–26.5% → 57.5–68% at 6 cm
+    (p < 1e-9, both models).
+  - It keeps the latency robustness (400 ms: n.s. against the default).
+  - It costs 8–11 points nominally (p = 0.012 and 0.072).
+  - At c = −0.05, ensembling beats replan 25 under 400 ms latency (143 vs 116 and 160 vs 108
+    successes, p < 0.001) and roughly matches it under displacement. Its worst case over the
+    three conditions is the best of any mode on our checkpoint (66.5%, against 54% for replan 25)
+    and ties replan 25 on the official one (57.5% vs 58%).
 
 ## Limitations
 
@@ -113,7 +134,9 @@ p < 0.001, ours p = 0.34), and how the modes rank without latency.
 
 ## Next steps
 
-- Try inference-time methods that keep reactivity under latency, such as Real-Time Chunking
-  (Black et al., 2025).
+- Tune the ensembling coefficient per task, or make it adaptive: favor recent predictions only
+  when the observation changes unexpectedly.
+- Compare with inference-time methods that keep reactivity under latency, such as Real-Time
+  Chunking (Black et al., 2025).
 - Train with latency and perturbation augmentation.
 - Repeat the latency and displacement protocol on a real SO-101 arm.

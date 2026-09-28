@@ -521,3 +521,27 @@ failure remains after contact; the reward stages for that are in the core data.
 Full-chunk kinematics are identical at 0 and 200 ms: latency only shifts the start of each chunk.
 Replan 25 moves faster than full chunk but less efficiently (0.45–0.47): it makes more
 corrections and reaches the cube later.
+
+### Item 1, TE weights, done (jobs `te_weights_official` / `te_weights_ours100k`, t4-medium, $1.88)
+
+Temporal-ensembling success by weight coefficient, 200 paired seeds (official / ours). p values
+are paired against the default 0.01.
+
+| Coefficient | Nominal | 6 cm | 400 ms |
+|---|---|---|---|
+| +0.01 (default; favors old predictions) | 71.0 / 74.5 | 26.5 / 21.0 | 68.0 / 77.0 |
+| 0 (uniform) | 71.5 / 78.5 (p = 1 / 0.096) | 36.0 / 33.5 (p = 6e-4 / 2e-5) | 70.5 / 78.0 (n.s.) |
+| −0.05 (favors recent) | 60.0 / 66.5 (p = 0.012 / 0.072) | **57.5 / 68.0** (p = 4e-10 / 6e-20) | 71.5 / 80.0 (n.s.) |
+
+- **Hypothesis confirmed on both models.** ACT's default ensembling weights keep executing
+  pre-move plans. Shifting weight to recent predictions restores reactivity, with no loss of
+  latency robustness and an 8–11 point cost at nominal.
+- **TE at −0.05 vs replan 25** (same seeds): worse at nominal (official 120 vs 150, p = 2e-5;
+  ours 133 vs 147, p = 0.034). At 6 cm, worse on official (115 vs 136, p = 0.007) and level on
+  ours (136 vs 123, p = 0.11). **Much better at 400 ms** (143 vs 116, p = 7e-4; 160 vs 108,
+  p = 6e-11).
+- **Worst case over the three conditions:** ours TE −0.05 66.5% > replan 25 54% > TE default 21%
+  > full 18.5%; official replan 25 58% ≈ TE −0.05 57.5%.
+- Data checks: 400 displaced episodes per model, 0 bad moves, 0 contacts before the move.
+
+The cloud total for the project so far is about $10.8.

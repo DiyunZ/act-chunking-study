@@ -5,14 +5,18 @@ world changes mid-plan? This repository trains an ACT policy with
 [Hugging Face LeRobot](https://github.com/huggingface/lerobot) on the ALOHA bimanual transfer-cube
 task in simulation. It then measures five ways of executing ACT's 2-second chunks under two stresses:
 observation latency (0–400 ms) and a mid-episode cube displacement (2–6 cm). There are 16,000 paired
-episodes across two independently trained checkpoints.
+episodes across two independently trained checkpoints, plus follow-up experiments that
+explain the failure modes.
 
 ![Same episode, cube moved 6 cm: only replanning every 0.5 s recovers](results/video/seed1018_6cm.gif)
 
 ## Key findings (replicated on both checkpoints)
 
-- **Temporal ensembling** makes ACT insensitive to up to 400 ms of latency. When the target moves,
-  it does no better than executing whole chunks open loop.
+- **Temporal ensembling** makes ACT insensitive to up to 400 ms of latency. With ACT's default
+  weights it does no better than open-loop chunks when the target moves. The defaults favor old
+  predictions; **weighting recent predictions instead (coefficient −0.05) raises success after a
+  6 cm move from 21–26.5% to 57.5–68%** and keeps the latency robustness, at a cost of 8–11
+  points of nominal success.
 - **Replanning every 0.5 s** is the only mode that recovers from a 6 cm move: 61–68% success
   against 18–27% for the other modes. It pays for this with the largest latency penalty
   (−17 to −20 points at 400 ms).
