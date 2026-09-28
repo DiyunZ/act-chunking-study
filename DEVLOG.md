@@ -138,10 +138,59 @@ Cloud option under consideration: Hugging Face Jobs. It is LeRobot's own remote 
 is rebuilt daily (last on 2026-09-28) and ships gym-aloha with `MUJOCO_GL=egl`. Billing is
 per second from prepaid credits, for example `l4x1` (8 vCPU, L4 24 GB) at $0.80/h.
 
+### Day 1, night: Hugging Face Jobs
+
+Cloud provider: Hugging Face Jobs. Diyun logged in on the Mac, and the token stays in the local
+HF cache. The account is `FTG64`. PRO is not needed: Jobs only require a positive credit balance.
+
+| Item | Evidence |
+|---|---|
+| Smoke test 1 failed. Root cause: `AlohaEnv.create_envs` builds `AsyncVectorEnv(..., context="forkserver")`, and forkserver workers never import `gym_aloha`, so `gym.make` raises `NamespaceNotFound`. This is a LeRobot bug that affects any `--eval.batch_size > 1` run with async envs. | `outputs/cloud/smoke_test.log` (not committed) |
+| Smoke test 2 passed with `--eval.use_async_envs=false`. Hardware: L4 23 GB, 8 vCPU. Image: LeRobot 0.6.2, the same version as the local pin. Headless EGL render at 6.1 ms/step. Official checkpoint on seeds 1000–1009: **10/10 outcomes identical to the official eval**. | job `6ab9de6b52d0dbd7f1d9f7b2`, `scripts/cloud_smoke_test.sh` |
+| Baseline training on `l4x1` at **8.6 steps/s**, so 100k steps take about 3.2 h. Checkpoints go to the private model repo `FTG64/act_aloha_transfer_cube` under `checkpoints/<step>`, tagged by step. | job `6ab9df5152d0dbd7f1d9f7ea` |
+| Harness `scripts/chunk_eval.py` passes **20/20 time-alignment checks**: 4 modes × 5 delays, verifying the executed-step index, the observation used by each prediction, and the prediction counts. | `scripts/test_chunk_executor.py` |
+
+Submit command for the training run (the job reuses this exact config):
+
+```bash
+lerobot-train --dataset.repo_id=lerobot/aloha_sim_transfer_cube_human --dataset.video_backend=pyav \
+  --policy.type=act --policy.repo_id=FTG64/act_aloha_transfer_cube --batch_size=8 --steps=100000 \
+  --save_freq=25000 --log_freq=200 --num_workers=4 --save_checkpoint_to_hub=true \
+  --wandb.enable=false --seed=1000 --output_dir=outputs/train/act_aloha_transfer_cube \
+  --job_name=act_aloha_transfer_cube --job.target=l4x1 --job.timeout=8h --job.detach=true
+```
+
+Decisions:
+
+1. **Harness built on LeRobot's own loop.** Chose to call `eval_policy` (the function behind
+   `lerobot-eval`) and to build the env, policy and processors exactly as `eval_main` does.
+   Only two layers are new:
+   - `ChunkExecutor` decides which predicted actions are executed. It reuses
+     `ACTPolicy.predict_action_chunk` and `ACTTemporalEnsembler`.
+   - `CubeDisplacement` is a gym wrapper.
+
+   Rejected writing a custom rollout loop: it would have to re-derive seeding, autoreset and
+   success accounting, and any difference there would contaminate the comparison.
+2. **Start-of-episode latency.** During the first d steps no frame older than o_0 exists, so the
+   policy uses o_0 with offset t (the effective delay ramps from 0 to d). Rejected holding the arms
+   still for d steps: that would need a hand-built "hold" action, which is expressed in a
+   different normalization space from the state.
+3. **Moving the cube.** Chose to edit `qpos`/`qvel` of the cube's free joint in place and then
+   call `physics.forward()`. Rejected `physics.reset_context()`: the dm_control source shows it
+   calls `reset()` on entry, which would snap both arms back to their initial pose mid-episode.
+   Every move now records `arms_unchanged_by_move` and the distance actually moved.
+4. **Parallelism.** Chose independent worker processes (spawn), each with in-process envs and one
+   batched forward pass per step. Rejected LeRobot's AsyncVectorEnv because of the forkserver bug.
+5. **Results storage.** A private dataset repo `FTG64/act-chunking-study` holds `code/` (the
+   exact scripts each job ran) and `results/`. Jobs sync results as they go and skip tasks whose
+   results already exist, so a crashed job can be resumed.
+
+Costs so far: the two smoke tests took about 2.5 min of `l4x1`, roughly $0.03.
+
 ### Open decisions (Diyun)
 
-- Cloud provider and account setup. The recommendation is in the Day 1 chat.
-- Whether short local debugging runs of 1–2 episodes are acceptable while building the harness.
+- Whether short local debugging runs of 1–2 episodes are acceptable. So far only syntax checks,
+  imports and the simulator-free unit test have run locally.
 
 ### Next session (Day 2)
 
