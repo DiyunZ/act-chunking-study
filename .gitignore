@@ -1,0 +1,9 @@
+# Upstream LeRobot clone (pinned commit recorded in DEVLOG.md / README.md)
+lerobot/
+# Training outputs, checkpoints and eval videos (large; models go to the Hugging Face Hub)
+outputs/
+checkpoints/
+*.mp4
+!results/**/*.mp4
+.DS_Store
+__pycache__/

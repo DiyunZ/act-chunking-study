@@ -1,0 +1,8 @@
+# 300-step ACT training speed test on Apple M5 Pro (MPS), batch 8, 2026-09-27
+# Command: see DEVLOG.md, Day 1. Log lines copied verbatim from lerobot-train output.
+step:50 smpl:400 ep:1 epch:0.02 loss:15.915 grdn:283.876 lr:1.0e-05 data_s:0.050 prep_s:0.003 updt_s:0.373 step_s:0.426 smp/s:19 l1_loss:0.728 kld_loss:1.519
+step:100 smpl:800 ep:2 epch:0.04 loss:5.462 grdn:137.686 lr:1.0e-05 data_s:0.003 prep_s:0.000 updt_s:0.285 step_s:0.287 smp/s:28 l1_loss:0.627 kld_loss:0.483
+step:150 smpl:1K ep:3 epch:0.06 loss:4.377 grdn:112.507 lr:1.0e-05 data_s:0.003 prep_s:0.000 updt_s:0.286 step_s:0.289 smp/s:28 l1_loss:0.594 kld_loss:0.378
+step:200 smpl:2K ep:4 epch:0.08 loss:3.815 grdn:99.788 lr:1.0e-05 data_s:0.003 prep_s:0.000 updt_s:0.285 step_s:0.288 smp/s:28 l1_loss:0.545 kld_loss:0.327
+step:250 smpl:2K ep:5 epch:0.10 loss:3.424 grdn:94.467 lr:1.0e-05 data_s:0.003 prep_s:0.000 updt_s:0.285 step_s:0.288 smp/s:28 l1_loss:0.529 kld_loss:0.290
+step:300 smpl:2K ep:6 epch:0.12 loss:3.312 grdn:93.530 lr:1.0e-05 data_s:0.003 prep_s:0.000 updt_s:0.285 step_s:0.288 smp/s:28 l1_loss:0.505 kld_loss:0.281

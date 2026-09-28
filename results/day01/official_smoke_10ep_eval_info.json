@@ -1,0 +1,118 @@
+{
+  "per_task": [
+    {
+      "task_group": "aloha",
+      "task_id": 0,
+      "metrics": {
+        "sum_rewards": [
+          69.0,
+          167.0,
+          192.0,
+          290.0,
+          277.0,
+          10.0,
+          288.0,
+          240.0,
+          275.0,
+          76.0
+        ],
+        "max_rewards": [
+          1.0,
+          4.0,
+          4.0,
+          4.0,
+          4.0,
+          1.0,
+          4.0,
+          4.0,
+          4.0,
+          2.0
+        ],
+        "successes": [
+          false,
+          true,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false
+        ],
+        "video_paths": [
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_0.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_1.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_2.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_3.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_4.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_5.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_6.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_7.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_8.mp4",
+          "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_9.mp4"
+        ],
+        "predicted_video_paths": []
+      },
+      "n_episodes": 10,
+      "n_success": 7,
+      "pc_success": 70.0,
+      "pc_success_ci95": [
+        39.67781474611454,
+        89.2208732593699
+      ]
+    }
+  ],
+  "per_group": {
+    "aloha": {
+      "avg_sum_reward": 188.4,
+      "avg_max_reward": 3.2,
+      "pc_success": 70.0,
+      "n_episodes": 10,
+      "n_success": 7,
+      "pc_success_ci95": [
+        39.67781474611454,
+        89.2208732593699
+      ],
+      "video_paths": [
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_0.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_1.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_2.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_3.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_4.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_5.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_6.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_7.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_8.mp4",
+        "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_9.mp4"
+      ],
+      "predicted_video_paths": []
+    }
+  },
+  "overall": {
+    "avg_sum_reward": 188.4,
+    "avg_max_reward": 3.2,
+    "pc_success": 70.0,
+    "n_episodes": 10,
+    "n_success": 7,
+    "pc_success_ci95": [
+      39.67781474611454,
+      89.2208732593699
+    ],
+    "eval_s": 39.05108189582825,
+    "eval_ep_s": 3.905108189582825,
+    "video_paths": [
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_0.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_1.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_2.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_3.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_4.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_5.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_6.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_7.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_8.mp4",
+      "../outputs/eval/official_smoke_10ep/videos/aloha_0/eval_episode_9.mp4"
+    ],
+    "predicted_video_paths": []
+  }
+}

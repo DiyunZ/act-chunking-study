@@ -1,0 +1,4 @@
+seeds 1000-1009 (n=10)
+ours     : 7/10 = 70.0%  (95% Wilson CI 39.7-89.2%)
+official : 7/10 = 70.0%  (95% Wilson CI 39.7-89.2%)
+same outcome on 10/10 seeds; both succeed 7, only ours 0, only official 0
