@@ -38,8 +38,10 @@ from lerobot.policies.pretrained import PreTrainedPolicy
 
 # Initial cube positions are sampled uniformly from this x/y region (gym_aloha.utils.sample_box_pose).
 CUBE_REGION = ((0.0, 0.2), (0.4, 0.6))
-DISPLACEMENT_WINDOW = (70, 100)  # control steps; before the earliest grasp (step 105) in the 50 demos
-MODES = (("full", None), ("replan", 25), ("replan", 10), ("te", None))
+# Control steps, approved 2026-09-28. The first plan was 70-100, but in 50 official-checkpoint episodes
+# the earliest right-gripper contact came at step 84 (full chunk), so 50-75 keeps every move before contact.
+DISPLACEMENT_WINDOW = (50, 75)
+MODES = (("full", None), ("replan", 50), ("replan", 25), ("replan", 10), ("te", None))
 DELAYS = (0, 2, 5, 10, 20)  # control steps at 50 Hz: 0, 40, 100, 200, 400 ms
 DISPLACEMENTS_CM = (2, 4, 6)
 
@@ -384,7 +386,8 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=min(8, os.cpu_count() or 1))
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--videos-per-condition", type=int, default=0)
-    parser.add_argument("--deterministic", action="store_true", help="deterministic GPU kernels (reproducible reruns)")
+    parser.add_argument("--deterministic", action=argparse.BooleanOptionalAction, default=True,
+                        help="deterministic GPU kernels so reruns are identical (default on; --no-deterministic matches lerobot-eval)")
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--hub-repo", default=None, help="dataset repo to sync results to, e.g. user/act-chunking-study")
     parser.add_argument("--sync-every", type=int, default=16, help="sync to the Hub after this many finished tasks")

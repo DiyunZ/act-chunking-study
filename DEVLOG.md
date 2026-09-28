@@ -271,3 +271,20 @@ reproduction of the official checkpoint.
 Observation: the KL term went to about 0 by the end of training, so the CVAE latent is barely used
 (posterior collapse, common for ACT with `kl_weight=10`). At inference ACT feeds a zero latent
 either way, so this does not change evaluation.
+
+### Decisions (Diyun, 2026-09-28: all three approved as proposed)
+
+1. **Displacement window: steps 50–75** (1.0–1.5 s), replacing 70–100. In 50 official-checkpoint
+   episodes the earliest first contact came at step 84 (full chunk). The replanning modes make
+   first contact later (118 and up), so full chunk is the binding case. Every episode records
+   `reward_before_move` so that any early contact can be reported.
+2. **Replanning-interval sweep: full (100 − d) / 50 / 25 / 10, plus temporal ensembling.** Adding
+   `replan50` makes the interval a proper sweep. Keeping `replan10`, whose zero-delay collapse
+   (4/50) is itself a finding, means the core grid grows from 32 to 40 conditions per model.
+3. **Deterministic GPU kernels for all experiments.** This is now the harness default;
+   `--no-deterministic` reproduces the `lerobot-eval` backend settings used in the validation.
+   Reruns of a condition on the same hardware then give identical episodes. Each model's grid runs
+   in a single job, so all of its conditions share one GPU type (recorded in `meta.json`).
+
+Local 2-episode check of the new defaults (`replan50_d00_m4`): the moves happened at steps 71
+and 63, each moved 0.040 m with the arms unchanged, and nothing had touched the cube before the move.
