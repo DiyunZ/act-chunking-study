@@ -113,11 +113,35 @@ caffeinate -is lerobot-train --dataset.repo_id=lerobot/aloha_sim_transfer_cube_h
 Environment note: importing both OpenCV and PyAV prints macOS `objc` warnings about duplicate
 `AVF*` classes, because both bundle libavdevice. Nothing has crashed; keep an eye on it.
 
+### Day 1, late: compute moves off the Mac
+
+At Diyun's request, heavy compute no longer runs on the Mac. The local training run was
+stopped at step 1k and the 500-episode official eval at episode 253 of 500. Neither left a
+checkpoint or a result; both will be rerun in the cloud.
+
+The core-experiment design was approved as proposed, with two additions:
+
+- **Execution modes.** Four modes: full chunk (100 − d steps), replan every 25 steps, replan
+  every 10 steps, and temporal ensembling (coefficient 0.01).
+- **Delay.** Time-aligned observation latency d ∈ {0, 2, 5, 10, 20} steps (0–400 ms).
+- **Perturbation.** Cube displacement of 2, 4 or 6 cm at a random step in 70–100. The new
+  position is clipped to the training region, and the same perturbation schedule is used for
+  every mode.
+- **Sample size.** 200 episodes per condition on seeds 1000–1199, with Wilson CIs and paired
+  (McNemar) comparisons. Every failure is labeled with the reward stage it reached.
+- **Harness validation.** The harness must reproduce `lerobot-eval` at zero delay before any
+  experiment runs.
+- **Models.** Run the full grid on both our model and the official checkpoint.
+
+Cloud option under consideration: Hugging Face Jobs. It is LeRobot's own remote path
+(`lerobot-train --job.target=<flavor>`). The official image `huggingface/lerobot-gpu:latest`
+is rebuilt daily (last on 2026-09-28) and ships gym-aloha with `MUJOCO_GL=egl`. Billing is
+per second from prepaid credits, for example `l4x1` (8 vCPU, L4 24 GB) at $0.80/h.
+
 ### Open decisions (Diyun)
 
-- Design of the core experiment (Days 4–7): the delay model, the execution modes, the
-  perturbation, the episode counts, and whether to also run the official checkpoint. The
-  proposal is in the Day 1 chat.
+- Cloud provider and account setup. The recommendation is in the Day 1 chat.
+- Whether short local debugging runs of 1–2 episodes are acceptable while building the harness.
 
 ### Next session (Day 2)
 
