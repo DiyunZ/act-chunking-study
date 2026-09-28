@@ -72,7 +72,7 @@ Findings that hold on both checkpoints:
 1. **Temporal ensembling makes ACT insensitive to latency** up to 400 ms (0 → 400 ms: p = 0.38 and
    0.21). It rejects a moved target no better than full-chunk execution (at 6 cm: p = 0.53 and
    0.10).
-2. **Replanning every 0.5 s is the only mode that recovers from a 6 cm move.** On the same seeds it
+2. **Replanning every 0.5 s is the only one of the five base modes that recovers from a 6 cm move.** On the same seeds it
    beats full chunk 97:11 and 106:10 (p < 1e-17). It also pays the largest latency penalty,
    −17 to −20 points at 400 ms, and is worse than full chunk there (p < 0.02).
 3. **Replanning every 0.2 s collapses to about 6%, and latency makes it better** (6% → 26.5% at

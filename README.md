@@ -17,9 +17,9 @@ explain the failure modes.
   predictions; **weighting recent predictions instead (coefficient −0.05) raises success after a
   6 cm move from 21–26.5% to 57.5–68%** and keeps the latency robustness, at a cost of 8–11
   points of nominal success.
-- **Replanning every 0.5 s** is the only mode that recovers from a 6 cm move: 61–68% success
-  against 18–27% for the other modes. It pays for this with the largest latency penalty
-  (−17 to −20 points at 400 ms).
+- **Replanning every 0.5 s** is the only one of the five base modes that recovers from a 6 cm move:
+  61.5–68% success, against 18.5–26.5% for full chunks and default ensembling. It pays for this
+  with the largest latency penalty (−17 to −20 points at 400 ms).
 - **Replanning every 0.2 s** collapses to about 6% success because the arm dithers in place: 40%
   of full-chunk speed and 10–15% path efficiency. Latency makes it *better*, because time alignment
   skips the start of each chunk.
@@ -28,8 +28,9 @@ explain the failure modes.
 |---|---|---|---|
 | Full chunk (2 s open loop) | 75 / 81% | 71.5 / 69% | 18.5 / 20% |
 | Replan every 25 steps (0.5 s) | 73.5 / 75% | 54 / 58% | **61.5 / 68%** |
-| Temporal ensembling | 74.5 / 71% | **77 / 68%** | 21 / 26.5% |
+| Temporal ensembling (ACT default weights) | 74.5 / 71% | 77 / 68% | 21 / 26.5% |
 | Replan every 10 steps (0.2 s) | 6 / 6.5% | 12 / 15% | 3.5 / 6.5% |
+| Temporal ensembling, recency-weighted (c = −0.05) | 66.5 / 60% | **80 / 71.5%** | **68 / 57.5%** |
 
 *Each cell: our checkpoint / the official LeRobot checkpoint, 200 paired seeds.*
 
