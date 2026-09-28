@@ -58,9 +58,12 @@ out = Path(sys.argv[1])
 def episodes(folder):
     return [e for f in sorted(folder.glob("seeds_*.json")) for e in json.loads(f.read_text())["episodes"]]
 
-touch = [e["first_step_at_reward"]["1"] for e in episodes(out / "harness" / "full_d00_m0") if "1" in e["first_step_at_reward"]]
-print(f"first right-gripper contact, full mode, n={len(touch)}: min {min(touch)}, "
-      f"p10 {np.percentile(touch, 10):.0f}, median {np.median(touch):.0f}")
+for cond in ("full_d00_m0", "replan25_d00_m0", "replan10_d00_m0", "te_d00_m0"):
+    eps = episodes(out / "harness" / cond)
+    touch = sorted(e["first_step_at_reward"]["1"] for e in eps if "1" in e["first_step_at_reward"])
+    print(f"first right-gripper contact, {cond}: {len(touch)}/{len(eps)} episodes touch; min {touch[0]}, "
+          f"p5 {np.percentile(touch, 5):.0f}, p10 {np.percentile(touch, 10):.0f}, median {np.median(touch):.0f}; "
+          f"before step 70: {sum(t < 70 for t in touch)}, before step 100: {sum(t < 100 for t in touch)}")
 for e in episodes(out / "displacement_check" / "full_d00_m4"):
     print(f"seed {e['seed']}: move at step {e['t_move']}, moved {e['moved_m']} m, arms unchanged "
           f"{e['arms_unchanged_by_move']}, reward before move {e['reward_before_move']}, success {e['success']}")

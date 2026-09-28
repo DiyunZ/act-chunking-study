@@ -187,10 +187,28 @@ Decisions:
 
 Costs so far: the two smoke tests took about 2.5 min of `l4x1`, roughly $0.03.
 
+Diyun approved short local debug runs (1–2 episodes). Training and experiments stay in the cloud.
+
+**Local 2-episode checks on MPS (Day 1, night)**
+
+- The first cloud validation job was canceled before it started, so it cost nothing. A local run
+  had shown that it would fail: `eval_policy` rejects anything that is not a `PreTrainedPolicy`.
+  `ChunkExecutor` now subclasses `PreTrainedPolicy`, with `config_class = ACTConfig` and training
+  methods passed through, and the unit test still passes.
+- Zero-delay reproduction: the harness gives the same outcome and summed reward as `lerobot-eval`
+  on the same machine. Seed 1000 scored 69.0 and failed; seed 1001 scored 167.0 and succeeded.
+- Displacement mechanics: every cube moved exactly 0.040 m and `arms_unchanged_by_move` was true.
+  The frames just before and after the move (`results/day01/seed1001_move_before_after.png`)
+  show the cube jump about 15 px while both arms stay put.
+- **Issue: the displacement window is too late.** On seed 1000 the policy first touched the
+  cube at step 95, inside the planned window of 70–100 (the demos' earliest grasp is step 105). A
+  move after contact would test something other than reaction to a moved target. The validation
+  job reports each mode's first-contact steps over 50 seeds. The window will be adjusted from that
+  data, subject to Diyun's approval.
+
 ### Open decisions (Diyun)
 
-- Whether short local debugging runs of 1–2 episodes are acceptable. So far only syntax checks,
-  imports and the simulator-free unit test have run locally.
+- The displacement window, once the contact-timing data is in.
 
 ### Next session (Day 2)
 

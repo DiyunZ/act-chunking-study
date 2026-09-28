@@ -10,9 +10,9 @@ Run: python scripts/test_chunk_executor.py
 
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import torch
+from lerobot.policies.act.configuration_act import ACTConfig
 from torch import nn
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -24,7 +24,7 @@ H = 100
 class FakeACT(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.config = SimpleNamespace(chunk_size=H)
+        self.config = ACTConfig(chunk_size=H, n_action_steps=H)
         self.seen: list[int] = []
 
     def reset(self) -> None:

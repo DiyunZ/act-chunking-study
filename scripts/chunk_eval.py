@@ -32,7 +32,9 @@ from pathlib import Path
 import gymnasium as gym
 import numpy as np
 import torch
-from torch import nn
+from lerobot.policies.act.configuration_act import ACTConfig
+from lerobot.policies.act.modeling_act import ACTTemporalEnsembler
+from lerobot.policies.pretrained import PreTrainedPolicy
 
 # Initial cube positions are sampled uniformly from this x/y region (gym_aloha.utils.sample_box_pose).
 CUBE_REGION = ((0.0, 0.2), (0.4, 0.6))
@@ -65,7 +67,7 @@ def build_grid(name: str) -> list[Condition]:
     raise ValueError(f"unknown grid {name!r}")
 
 
-class ChunkExecutor(nn.Module):
+class ChunkExecutor(PreTrainedPolicy):
     """Runs an ACT policy's action chunks when the newest usable observation is `delay` steps old.
 
     At control step t the policy sees o_s with s = max(0, t - delay): there is no older frame during
@@ -80,10 +82,16 @@ class ChunkExecutor(nn.Module):
 
     With delay = 0 these reproduce LeRobot's ACT with n_action_steps = H, n_action_steps = k, and
     temporal_ensemble_coeff = te_coeff with n_action_steps = 1.
+
+    It subclasses PreTrainedPolicy because LeRobot's eval_policy only accepts PreTrainedPolicy
+    instances; training-side methods are passed through to the wrapped policy.
     """
 
-    def __init__(self, policy: nn.Module, mode: str, delay: int = 0, k: int | None = None, te_coeff: float = 0.01):
-        super().__init__()
+    config_class = ACTConfig
+    name = "act_chunk_executor"
+
+    def __init__(self, policy: PreTrainedPolicy, mode: str, delay: int = 0, k: int | None = None, te_coeff: float = 0.01):
+        super().__init__(policy.config)
         horizon = policy.config.chunk_size
         if mode not in ("full", "replan", "te"):
             raise ValueError(f"unknown mode {mode!r}")
@@ -92,14 +100,20 @@ class ChunkExecutor(nn.Module):
         if mode == "replan" and (k is None or k < 1 or delay + k > horizon):
             raise ValueError(f"replan needs 1 <= k <= {horizon - delay}, got k={k}")
         self.policy = policy
-        self.config = policy.config
         self.mode, self.delay, self.k, self.te_coeff, self.horizon = mode, delay, k, te_coeff, horizon
         self.n_predictions = 0
         self.reset()
 
-    def reset(self) -> None:
-        from lerobot.policies.act.modeling_act import ACTTemporalEnsembler
+    def get_optim_params(self):
+        return self.policy.get_optim_params()
 
+    def forward(self, batch: dict):
+        return self.policy.forward(batch)
+
+    def predict_action_chunk(self, batch: dict, **kwargs) -> torch.Tensor:
+        return self.policy.predict_action_chunk(batch)
+
+    def reset(self) -> None:
         self.policy.reset()
         self.t = 0
         self.history: deque[tuple[int, dict]] = deque(maxlen=self.delay + 1)
@@ -111,10 +125,10 @@ class ChunkExecutor(nn.Module):
     def _predict(self) -> tuple[torch.Tensor, int]:
         s, batch = self.history[0]
         self.n_predictions += 1
-        return self.policy.predict_action_chunk(batch), self.t - s
+        return self.predict_action_chunk(batch), self.t - s
 
     @torch.no_grad()
-    def select_action(self, batch: dict) -> torch.Tensor:
+    def select_action(self, batch: dict, **kwargs) -> torch.Tensor:
         self.history.append((self.t, batch))
         if self.mode == "te":
             chunk, offset = self._predict()
