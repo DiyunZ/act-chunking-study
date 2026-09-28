@@ -6,7 +6,7 @@
 #            "hub:<repo>@<revision>:<subfolder>" (e.g. hub:FTG64/act_aloha_transfer_cube@025000:checkpoints/025000/pretrained_model)
 #   LABEL    short name recorded in the results and used for the output folder (results/<RUN>)
 #   RUN      output folder name inside results/ of the dataset repo
-#   GRID     validation | core            ONLY   optional space-separated condition names
+#   GRID     validation | core | te_weights   ONLY   optional space-separated condition names
 #   SEEDS    start:stop                   WORKERS / NENVS / BLOCK   parallelism settings
 #   VIDEOS   videos per condition (default 0)
 #   MODES    optional space-separated modes (default: chunk_eval.py's MODES), e.g. "full replan50 replan25 replan10 te"
@@ -23,7 +23,7 @@ REPO=FTG64/act-chunking-study
 STUDY=/tmp/study
 : "${CKPT:?}" "${LABEL:?}" "${RUN:?}" "${GRID:?}" "${SEEDS:?}"
 WORKERS=${WORKERS:-7}; NENVS=${NENVS:-5}; BLOCK=${BLOCK:-25}; VIDEOS=${VIDEOS:-0}; ONLY=${ONLY:-}
-MODES=${MODES:-}; WINDOW=${WINDOW:-}; DETERMINISTIC=${DETERMINISTIC:-0}
+MODES=${MODES:-}; WINDOW=${WINDOW:-}; DETERMINISTIC=${DETERMINISTIC:-0}; LOGTRAJ=${LOGTRAJ:-0}
 
 (while true; do echo "[mem $(date +%H:%M:%S)] $(free -m | awk '/Mem:/ {print $3 " MB used of " $2 " MB"}')"; sleep 60; done) &
 MEM_PID=$!
@@ -46,6 +46,7 @@ if [ -n "$ONLY" ]; then extra+=(--only $ONLY); fi
 if [ -n "$MODES" ]; then extra+=(--modes $MODES); fi
 if [ -n "$WINDOW" ]; then extra+=(--window "$WINDOW"); fi
 if [ "$DETERMINISTIC" = "1" ]; then extra+=(--deterministic); fi
+if [ "$LOGTRAJ" != "0" ]; then extra+=(--log-trajectory "$LOGTRAJ"); fi
 python "$STUDY/code/scripts/chunk_eval.py" --checkpoint "$POLICY" --checkpoint-label "$LABEL" --grid "$GRID" \
   "${extra[@]}" --seeds "$SEEDS" --block "$BLOCK" --n-envs "$NENVS" --workers "$WORKERS" \
   --videos-per-condition "$VIDEOS" --out "/tmp/$RUN" --hub-repo "$REPO"

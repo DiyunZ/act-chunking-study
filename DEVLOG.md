@@ -457,3 +457,40 @@ checkpoint-eval job, whose runtime the job list does not show).
    - the replan-10 speed hypothesis (measure arm speed and time to first contact);
    - the TE weighting hypothesis (rerun TE with a coefficient that favors recent predictions).
 2. Side-by-side demo video, one-page writeup, README.
+
+### Item 2, replan-10 mechanism (part 1: existing data and chunk profiles)
+
+- **Touch rate and timing** from the core runs (no displacement): replan 10 at 0 ms touches the cube
+  in only 26% (official) and 18% (ours) of episodes. When it does, the median first touch is at
+  step 283 or 246, against about 140 for full chunk. With latency the touch rate rises: 95% and
+  89% at 200 ms, 94% at 400 ms, with first touch at steps 170/152. Other modes also touch earlier
+  as latency grows (replan 25: 180 → 168; TE: 165 → 153), while full chunk stays at about 145.
+  Yet replan 10 at 400 ms still succeeds only 12–15% of the time despite 94% touching, so a
+  second failure sits after contact.
+- **Chunk velocity profile** (`scripts/chunk_profile.py`, 300 demonstration frames from steps
+  0–150, right-arm joint targets):
+  - official: indices 0–9 move 0.0106 rad/step, indices 10–39 move 0.0134 (21% slower at the start);
+  - ours: 0.0123 vs 0.0134 (8% slower);
+  - the demonstrator moves 0.0118 rad/step at those frames.
+
+  The slow-start effect is real but too small to explain a collapse from about 80% to 6%, and it
+  is barely present in our model, which collapses just the same. The next check is closed-loop
+  trajectories (jobs `diag_*`, 50 seeds, `--log-trajectory 200`): arm speed, path efficiency
+  (net displacement / path length) and direction reversals separate "slow" from "dithering".
+
+### Item 1, TE weights (running)
+
+Jobs `te_weights_official` and `te_weights_ours100k` test coefficient 0 (uniform) and −0.05
+(favors recent predictions) at 0 ms / 6 cm / 400 ms on 200 seeds each; the default 0.01 comes
+from the core runs. −0.01 was dropped to stay within the $1–2 estimate given to Diyun (TE tasks
+take about 770 s per 25 episodes on T4).
+
+### Item 3, demo video (done)
+
+`results/video/seed1018_6cm.mp4` (20 s, 0.5× speed) and `.gif` show our 100k checkpoint on seed
+1018 with the cube moved 6 cm at step 55. Full chunk and temporal ensembling never touch the
+cube; replan 25 re-targets and completes the handover at 6.1 s. It was rendered locally (3
+episodes) and the outcomes match the cloud runs. Seed choice: 24 seeds show this pattern on both
+models while all three modes succeed without the move; 1018 was picked because the move is large
+and diagonal and so easy to see. Composed by `scripts/make_video.py` (PIL for the text, since
+Homebrew's ffmpeg has no drawtext).

@@ -52,10 +52,13 @@ class Condition:
     k: int | None = None  # actions executed per prediction in "replan" mode
     delay: int = 0  # observation latency in control steps
     displacement_cm: float = 0.0
+    te_coeff: float = 0.01  # temporal-ensembling weight exp(-c * i), i = 0 for the oldest prediction (ACT's default)
 
     @property
     def name(self) -> str:
         mode = f"replan{self.k}" if self.mode == "replan" else self.mode
+        if self.mode == "te" and self.te_coeff != 0.01:
+            mode = f"te{self.te_coeff:g}"  # e.g. te0, te-0.05; the default keeps the plain "te" name
         return f"{mode}_d{self.delay:02d}_m{self.displacement_cm:g}"
 
 
@@ -82,6 +85,11 @@ def build_grid(name: str, modes: list[tuple[str, int | None]] | None = None) -> 
         delay_sweep = [Condition(mode, k, delay=d) for mode, k in modes for d in DELAYS]
         displacement_sweep = [Condition(mode, k, displacement_cm=m) for mode, k in modes for m in DISPLACEMENTS_CM]
         return delay_sweep + displacement_sweep
+    if name == "te_weights":
+        # Does favoring recent predictions let temporal ensembling react to a moved cube, and at
+        # what latency cost? The default (0.01) runs are in the core grid.
+        return [Condition("te", delay=d, displacement_cm=m, te_coeff=c)
+                for c in (0.0, -0.05) for d, m in ((0, 0), (0, 6), (20, 0))]
     raise ValueError(f"unknown grid {name!r}")
 
 
@@ -175,10 +183,11 @@ class CubeDisplacement(gym.Wrapper):
     """
 
     def __init__(self, env: gym.Env, displacement_m: float, window: tuple[int, int] = DISPLACEMENT_WINDOW,
-                 seed_offset: int = 10_000):
+                 seed_offset: int = 10_000, log_steps: int = 0):
         super().__init__(env)
         self.displacement_m = displacement_m
         self.window = window
+        self.log_steps = log_steps  # log right-arm joints and gripper-cube distance for the first N steps
         self.seed_offset = seed_offset
         self.records: list[dict] = []
         self._episode: dict | None = None
@@ -186,6 +195,13 @@ class CubeDisplacement(gym.Wrapper):
 
     def _physics(self):
         return self.env.unwrapped._env.physics
+
+    def _log_row(self) -> list[float]:
+        physics = self._physics()
+        grip = physics.named.data.xpos["vx300s_right/gripper_link"]
+        box = physics.named.data.xpos["box"]
+        right_arm = physics.data.qpos[8:14]  # vx300s_right waist ... wrist_rotate
+        return [self._t, *np.round(right_arm, 5).tolist(), round(float(np.linalg.norm(grip - box)), 5)]
 
     def _cube_xy(self) -> np.ndarray:
         return self._physics().data.qpos[-7:-5].copy()  # the cube's free joint is the last 7 qpos
@@ -230,6 +246,8 @@ class CubeDisplacement(gym.Wrapper):
             "reward_before_move": None,
             "first_step_at_reward": {},
         }
+        if self.log_steps:
+            self._episode["trajectory"] = [self._log_row()]  # rows: step, 6 right-arm joints, gripper-cube distance
         self.records.append(self._episode)
         return obs, info
 
@@ -247,6 +265,8 @@ class CubeDisplacement(gym.Wrapper):
         if ep is not None:
             for level in range(1, int(reward) + 1):
                 ep["first_step_at_reward"].setdefault(str(level), self._t)
+            if self.log_steps and self._t <= self.log_steps and not (terminated or truncated):
+                ep["trajectory"].append(self._log_row())
         return obs, reward, terminated, truncated, info
 
 
@@ -302,8 +322,9 @@ def run_task(task: dict) -> dict:
     cond = Condition(**task["condition"])
     env_cfg, policy, preprocessor, postprocessor, env_pre, env_post = _load(task["checkpoint"], task["device"])
     vec = make_env(env_cfg, n_envs=task["n_envs"], use_async_envs=False)[env_cfg.type][0]
-    vec.envs = [CubeDisplacement(e, cond.displacement_cm / 100.0, window=tuple(task['window'])) for e in vec.envs]
-    executor = ChunkExecutor(policy, cond.mode, delay=cond.delay, k=cond.k)
+    vec.envs = [CubeDisplacement(e, cond.displacement_cm / 100.0, window=tuple(task['window']),
+                                 log_steps=task.get('log_steps', 0)) for e in vec.envs]
+    executor = ChunkExecutor(policy, cond.mode, delay=cond.delay, k=cond.k, te_coeff=cond.te_coeff)
     videos_dir = Path(task["out_path"]).with_suffix("") if task["n_videos"] else None
 
     start = time.time()
@@ -375,7 +396,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--checkpoint", required=True, help="local pretrained_model directory")
     parser.add_argument("--checkpoint-label", default=None, help="name recorded in the results")
-    parser.add_argument("--grid", choices=("validation", "core"), required=True)
+    parser.add_argument("--grid", choices=("validation", "core", "te_weights"), required=True)
     parser.add_argument("--only", nargs="*", default=None, help="run only these condition names from the grid")
     parser.add_argument("--modes", nargs="*", default=None, help="execution modes, e.g. full replan50 replan25 replan10 te")
     parser.add_argument("--window", default=f"{DISPLACEMENT_WINDOW[0]}:{DISPLACEMENT_WINDOW[1]}",
@@ -386,6 +407,8 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=min(8, os.cpu_count() or 1))
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--videos-per-condition", type=int, default=0)
+    parser.add_argument("--log-trajectory", type=int, default=0, metavar="N",
+                        help="log right-arm joints and gripper-cube distance for the first N steps of each episode")
     parser.add_argument("--deterministic", action=argparse.BooleanOptionalAction, default=True,
                         help="deterministic GPU kernels so reruns are identical (default on; --no-deterministic matches lerobot-eval)")
     parser.add_argument("--out", required=True, type=Path)
@@ -437,6 +460,7 @@ def main() -> None:
                     "n_videos": args.videos_per_condition if i == 0 else 0,
                     "deterministic": args.deterministic,
                     "window": list(window),
+                    "log_steps": args.log_trajectory,
                     "out_path": str(out_path),
                 }
             )
