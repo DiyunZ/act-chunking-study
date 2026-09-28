@@ -1,6 +1,6 @@
 # Action chunking under delay and disturbance
 
-*A two-week imitation-learning study with Hugging Face LeRobot. Diyun Zheng, September–October 2026.*
+*An imitation-learning study with Hugging Face LeRobot. Diyun Zheng, September 2026.*
 
 ## Question
 
@@ -43,9 +43,9 @@ latency of 0–400 ms, and a mid-episode displacement of the target of 2–6 cm.
   d ∈ {0, 2, 5, 10, 20} steps, i.e. 0–400 ms.
 - **Displacement.** The cube is teleported 2, 4 or 6 cm, in a random direction that stays inside
   the training region, at a random step between 50 and 75. That is before first contact in all
-  16,000 episodes, and the arms are verified untouched on every move.
-- **Harness.** A thin layer on LeRobot's own evaluator. It matches `lerobot-eval`'s success rate
-  in all four modes tested (per-episode outcomes agree on 43–50 of 50 seeds). GPU runs are
+  6,800 displaced episodes, and the arms are verified untouched on every move.
+- **Harness.** A thin layer on LeRobot's own evaluator. It matches `lerobot-eval`'s success count
+  to within one episode in all four modes tested (per-episode outcomes agree on 43–50 of 50 seeds). GPU runs are
   reproducible at the outcome level but not at trajectory level, and this is also true of
   `lerobot-eval` itself.
 - **Statistics.** Each condition uses the same 200 seeds, which allows paired exact McNemar
@@ -86,7 +86,7 @@ p < 0.001, ours p = 0.34), and how the modes rank without latency.
 
 ## Why the modes fail
 
-- **Moved target.** With full chunk and ensembling, 72–90 of the failed episodes per model never
+- **Moved target.** At 6 cm, 72–90 of the failed full-chunk and ensembling episodes per model never
   touch the cube: the arm completes the plan made for the old position. With replan 25, only 12–23
   failures are of this kind.
 - **Replan every 10 steps: the arm dithers in place.** Closed-loop logs over 50 seeds per model
@@ -120,7 +120,8 @@ p < 0.001, ours p = 0.34), and how the modes rank without latency.
   - It keeps the latency robustness (400 ms: n.s. against the default).
   - It costs 8–11 points nominally (p = 0.012 and 0.072).
   - At c = −0.05, ensembling beats replan 25 under 400 ms latency (143 vs 116 and 160 vs 108
-    successes, p < 0.001) and roughly matches it under displacement. Its worst case over the
+    successes, p < 0.001). Under displacement it is below replan 25 on the official checkpoint (115
+    vs 136, p = 0.007) and level on ours (136 vs 123, p = 0.11). Its worst case over the
     three conditions is the best of any mode on our checkpoint (66.5%, against 54% for replan 25)
     and ties replan 25 on the official one (57.5% vs 58%).
 
