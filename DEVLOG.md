@@ -360,3 +360,45 @@ Official checkpoint, full chunk, seeds 1000–1024. The same command was run twi
 - Decision (Diyun, 2026-09-28): **option A**. Accept outcome-level reproducibility and document
   the trajectory-level nondeterminism as a limitation. No further diagnosis (option B, a
   step-by-step divergence check, was declined).
+
+### Core results: official checkpoint (job `6aba653a6b030d633f69ccee`; `results/core/official/`)
+
+The job ran on t4-medium with the deterministic harness, window 50–75 and 5 modes. It reached its
+4 h timeout after all 320 tasks had synced, at about $2.40. Data checks: 40 conditions × 200
+episodes on seeds 1000–1199. Every displacement moved exactly the nominal distance with the arms
+unchanged, and no episode had touched the cube before the move.
+
+Success rate (%), n = 200 per cell:
+
+| Mode | 0 ms | 40 | 100 | 200 | 400 ms | | 0 cm | 2 | 4 | 6 cm |
+|---|---|---|---|---|---|---|---|---|---|---|
+| full chunk | 81.0 | 79.5 | 80.0 | 76.0 | 69.0 | | 81.0 | 65.5 | 41.5 | 20.0 |
+| replan 50 | 74.0 | 73.0 | 74.5 | 69.0 | 66.5 | | 74.0 | 70.5 | 51.0 | 35.5 |
+| replan 25 | 75.0 | 72.0 | 69.5 | 65.0 | 58.0 | | 75.0 | 73.5 | 76.5 | 68.0 |
+| replan 10 | 6.5 | 7.0 | 12.5 | 20.5 | 15.0 | | 6.5 | 8.0 | 7.5 | 6.5 |
+| temporal ensembling | 71.0 | 71.0 | 70.0 | 70.0 | 68.0 | | 71.0 | 68.5 | 51.5 | 26.5 |
+
+Paired exact McNemar tests on shared seeds. These are the findings as of the official checkpoint
+only; they still have to be checked against our model.
+
+1. **No mode wins everywhere: latency robustness and disturbance rejection pull in opposite
+   directions.**
+   - Temporal ensembling barely notices latency (71 → 68% from 0 to 400 ms, p = 0.21). It is
+     worse than full chunk at zero latency (p = 0.011) and level with it at 400 ms (p = 0.89).
+   - Replanning every 25 steps is the most latency-sensitive: 75 → 58% (p < 0.001), and worse
+     than full chunk at 400 ms (p = 0.018).
+2. **Replanning every 25 steps rejects cube displacement.** At 6 cm it keeps 68% (against 75% at
+   0 cm, p = 0.15). Full chunk falls to 20%; the paired split is 106 wins for replan 25 against
+   10 for full chunk (p = 2e-21).
+3. **Temporal ensembling reacts to displacement no better than full-chunk execution**, even though
+   it queries the policy every step: 71 → 26.5% at 6 cm (p = 3e-18), and not different from full
+   chunk at 6 cm (p = 0.098). Hypothesis: with coefficient 0.01 the exponential weights favor
+   older predictions, so the executed action stays dominated by plans made before the move.
+4. **Latency *improves* replan 10** (6.5% at 0 ms against 20.5% at 200 ms, p < 0.001). This
+   supports the Day 1 hypothesis that replan 10 fails because it only ever executes the start of
+   each chunk. Time alignment under latency skips those first actions.
+
+Figures: `results/core/official/delay.png` and `displacement.png`. Tables: `summary.md`.
+
+`core_ours100k` (job `6aba73e46b030d633f69cea2`) had 272/320 tasks synced at 12:30 CDT and will hit
+its 4 h timeout. It will be resubmitted with the same `RUN`, and the harness skips finished tasks.
