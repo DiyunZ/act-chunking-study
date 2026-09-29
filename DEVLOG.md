@@ -712,3 +712,17 @@ Median over 50 episodes, steps 0–150 (`scripts/analyze_trajectories.py`, `resu
 
 The WRITEUP and README now state the stall result instead of the hypothesis. The dataset card lists
 the new runs. Trajectory episodes in total: 800. The cloud total for the project is about $13.2.
+
+### Published (2026-09-28, 23:35 CDT)
+
+Diyun approved publishing both the GitHub repo and the Hugging Face repos, using the repo's GIF and
+MP4 instead of a YouTube video. The LeRobot PR is held back for now.
+
+- GitHub: https://github.com/DiyunZ/act-chunking-study (public, MIT; topics robotics,
+  imitation-learning, lerobot, act, aloha, action-chunking, mujoco, huggingface).
+- Hugging Face: model `FTG64/act_aloha_transfer_cube` and dataset `FTG64/act-chunking-study` are
+  now public.
+- Checks before publishing: no tokens, keys, local paths or personal email in any of the 24
+  commits. Every commit uses the GitHub noreply address. The repo is 5.7 MB.
+- Checks after publishing, without logging in: the repo page, the README images, the model and
+  dataset APIs, a checkpoint file and a results file all return HTTP 200.
