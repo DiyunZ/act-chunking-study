@@ -77,7 +77,8 @@ def parse_modes(names: list[str] | None) -> list[tuple[str, int | None]]:
     return out
 
 
-def build_grid(name: str, modes: list[tuple[str, int | None]] | None = None) -> list[Condition]:
+def build_grid(name: str, modes: list[tuple[str, int | None]] | None = None,
+               te_coeffs: tuple[float, ...] = (0.0, -0.05)) -> list[Condition]:
     modes = modes or list(MODES)
     if name == "validation":
         return [Condition(mode, k) for mode, k in modes]
@@ -89,7 +90,7 @@ def build_grid(name: str, modes: list[tuple[str, int | None]] | None = None) -> 
         # Does favoring recent predictions let temporal ensembling react to a moved cube, and at
         # what latency cost? The default (0.01) runs are in the core grid.
         return [Condition("te", delay=d, displacement_cm=m, te_coeff=c)
-                for c in (0.0, -0.05) for d, m in ((0, 0), (0, 6), (20, 0))]
+                for c in te_coeffs for d, m in ((0, 0), (0, 6), (20, 0))]
     raise ValueError(f"unknown grid {name!r}")
 
 
@@ -399,6 +400,8 @@ def main() -> None:
     parser.add_argument("--grid", choices=("validation", "core", "te_weights"), required=True)
     parser.add_argument("--only", nargs="*", default=None, help="run only these condition names from the grid")
     parser.add_argument("--modes", nargs="*", default=None, help="execution modes, e.g. full replan50 replan25 replan10 te")
+    parser.add_argument("--te-coeffs", nargs="*", type=float, default=[0.0, -0.05],
+                        help="ensembling coefficients for --grid te_weights (0.01, ACT's default, is in the core grid)")
     parser.add_argument("--window", default=f"{DISPLACEMENT_WINDOW[0]}:{DISPLACEMENT_WINDOW[1]}",
                         help="displacement step window start:end (inclusive)")
     parser.add_argument("--seeds", default="1000:1200", help="start:stop, stop exclusive")
@@ -435,7 +438,7 @@ def main() -> None:
                 shutil.copytree(Path(tmp) / hub_path, args.out, dirs_exist_ok=True)
 
     window = tuple(map(int, args.window.split(":")))
-    grid = build_grid(args.grid, parse_modes(args.modes))
+    grid = build_grid(args.grid, parse_modes(args.modes), tuple(args.te_coeffs))
     if args.only:
         unknown = set(args.only) - {c.name for c in grid}
         if unknown:
