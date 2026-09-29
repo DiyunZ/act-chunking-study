@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this study, its code or its results, please cite it as below."
+title: "ACT action chunking under delay and disturbance"
+abstract: >-
+  An evaluation of five ways to execute the action chunks of an ACT policy (full chunk, replanning
+  every 50, 25 or 10 steps, and temporal ensembling) on the ALOHA transfer-cube task in simulation,
+  under observation latency and mid-episode cube displacement, with two independently trained
+  checkpoints and paired seeds.
+type: software
+authors:
+  - family-names: Zheng
+    given-names: Diyun
+repository-code: "https://github.com/DiyunZ/act-chunking-study"
+license: MIT
+keywords:
+  - robotics
+  - imitation learning
+  - action chunking
+  - ACT
+  - LeRobot
+references:
+  - type: software
+    title: "LeRobot: State-of-the-art Machine Learning for Real-World Robotics in Pytorch"
+    url: "https://github.com/huggingface/lerobot"
+    year: 2024
+    authors:
+      - family-names: Cadene
+        given-names: Remi
+      - name: "LeRobot contributors"
+  - type: conference-paper
+    title: "Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware"
+    year: 2023
+    collection-title: "Robotics: Science and Systems"
+    authors:
+      - family-names: Zhao
+        given-names: Tony Z.
+      - family-names: Kumar
+        given-names: Vikash
+      - family-names: Levine
+        given-names: Sergey
+      - family-names: Finn
+        given-names: Chelsea

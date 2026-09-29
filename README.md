@@ -8,15 +8,17 @@ observation latency (0–400 ms) and a mid-episode cube displacement (2–6 cm).
 episodes across two independently trained checkpoints, plus follow-up experiments that
 explain the failure modes.
 
-![Same episode, cube moved 6 cm: only replanning every 0.5 s recovers](results/video/seed1018_6cm.gif)
+![Latency robustness vs reactivity for every execution mode, both checkpoints](results/tradeoff/tradeoff.png)
 
 ## Key findings (replicated on both checkpoints)
 
 - **Temporal ensembling** makes ACT insensitive to up to 400 ms of latency. With ACT's default
-  weights it does no better than open-loop chunks when the target moves. The defaults favor old
-  predictions; **weighting recent predictions instead (coefficient −0.05) raises success after a
-  6 cm move from 21–26.5% to 57.5–68%** and keeps the latency robustness, at a cost of 8–11
-  points of nominal success.
+  weights it is barely better than open-loop chunks when the target moves (+2.5 to +6.5 points,
+  not significant). The defaults favor old predictions; **weighting recent predictions instead
+  (coefficient −0.05) raises success after a 6 cm move from 21–26.5% to 57.5–68%** and keeps the
+  latency robustness, at an estimated cost of 8–11 points of nominal success (not significant
+  after correction). The useful range is narrow: at −0.1 and −0.2, success without latency
+  collapses to 23–25.5% and 1–3%.
 - **Replanning every 0.5 s** is the only one of the five base modes that recovers from a 6 cm move:
   61.5–68% success, against 18.5–26.5% for full chunks and default ensembling. It pays for this
   with the largest latency penalty (−17 to −20 points at 400 ms).
@@ -33,6 +35,12 @@ explain the failure modes.
 | Temporal ensembling, recency-weighted (c = −0.05) | 66.5 / 60% | **80 / 71.5%** | **68 / 57.5%** |
 
 *Each cell: our checkpoint / the official LeRobot checkpoint, 200 paired seeds.*
+
+![Same episode, cube moved 6 cm: only replanning every 0.5 s recovers](results/video/seed1018_6cm.gif)
+
+All 35 paired tests behind these claims were corrected together for multiple comparisons
+([results/stats/multiple_comparisons.md](results/stats/multiple_comparisons.md)). The writeup
+says where a claim does not survive the correction.
 
 The one-page writeup, [WRITEUP.md](WRITEUP.md), covers the method, statistics, failure analysis
 and limitations. [DEVLOG.md](DEVLOG.md) records every decision, command and piece of evidence in
@@ -57,10 +65,13 @@ order.
 | `scripts/test_chunk_executor.py` | Simulator-free unit test of chunk time alignment (20 cases). |
 | `scripts/compare_harness.py` | Validation of the harness against `lerobot-eval` on identical seeds. |
 | `scripts/summarize.py` | Tables (Wilson CIs, paired McNemar tests, failure stages) and figures. |
+| `scripts/tradeoff.py` | The headline trade-off figure and the ensembling-coefficient table. |
+| `scripts/multiple_comparisons.py` | Holm and Bonferroni correction of every paired test behind the claims. |
 | `scripts/analyze_trajectories.py`, `scripts/chunk_profile.py` | Mechanism analyses (arm kinematics, chunk velocity profile). |
 | `scripts/make_video.py` | Side-by-side demo video. |
 | `scripts/jobs/` | Hugging Face Jobs scripts used for training, validation and every experiment grid. |
 | `results/` | Summaries, figures and the demo video. The per-episode results live in the dataset repo on the Hub. |
+| `hub/` | The model and dataset cards of the Hugging Face repos. |
 
 ## Reproduce
 
@@ -96,9 +107,14 @@ python scripts/chunk_eval.py --checkpoint checkpoints/ours/checkpoints/100000/pr
 Rebuild the tables and figures from the published per-episode results:
 
 ```bash
-hf download FTG64/act-chunking-study --repo-type dataset --include "results/core_*" --local-dir outputs/hub
+hf download FTG64/act-chunking-study --repo-type dataset --include "results/core_*" \
+  --include "results/te_weights_*" --include "results/ckpt_*" --local-dir outputs/hub
 uv run --no-project --with numpy --with matplotlib python scripts/summarize.py \
   --runs outputs/hub/results/core_ours100k outputs/hub/results/core_official --out results/core/both
+uv run --no-project --with numpy --with matplotlib python scripts/tradeoff.py \
+  --results outputs/hub/results --out results/tradeoff
+uv run --no-project --with numpy --with matplotlib python scripts/multiple_comparisons.py \
+  --results outputs/hub/results --out results/stats
 ```
 
 Run a full grid on Hugging Face Jobs. Upload the scripts to your own dataset repo first; results
@@ -125,6 +141,11 @@ lerobot-train --dataset.repo_id=lerobot/aloha_sim_transfer_cube_human --dataset.
   --wandb.enable=false --seed=1000 --output_dir=outputs/train/act_aloha_transfer_cube \
   --job_name=act_aloha_transfer_cube --job.target=l4x1 --job.timeout=8h --job.detach=true
 ```
+
+## License and citation
+
+The code is MIT-licensed ([LICENSE](LICENSE)). The model weights on the Hub keep LeRobot's
+Apache-2.0 license. To cite this study, use [CITATION.cff](CITATION.cff).
 
 ## Acknowledgments
 

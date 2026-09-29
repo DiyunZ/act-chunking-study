@@ -43,18 +43,24 @@ latency of 0–400 ms, and a mid-episode displacement of the target of 2–6 cm.
   d ∈ {0, 2, 5, 10, 20} steps, i.e. 0–400 ms.
 - **Displacement.** The cube is teleported 2, 4 or 6 cm, in a random direction that stays inside
   the training region, at a random step between 50 and 75. That is before first contact in all
-  6,800 displaced episodes, and the arms are verified untouched on every move.
+  7,600 displaced episodes, and the arms are verified untouched on every move.
 - **Harness.** A thin layer on LeRobot's own evaluator. It matches `lerobot-eval`'s success count
   to within one episode in all four modes tested (per-episode outcomes agree on 43–50 of 50 seeds). GPU runs are
   reproducible at the outcome level but not at trajectory level, and this is also true of
   `lerobot-eval` itself.
 - **Statistics.** Each condition uses the same 200 seeds, which allows paired exact McNemar
   tests; intervals are 95% Wilson intervals. The main grid is 40 conditions × 2 checkpoints =
-  16,000 episodes. On top of that come 2,400 episodes for the ensembling-weight test and 500
-  with logged arm trajectories, all on T4 GPUs through Hugging Face Jobs. Total cloud cost for the project, training included, was about $11.
+  16,000 episodes. On top of that come 4,800 episodes for the ensembling-weight test and 500
+  with logged arm trajectories, all on T4 GPUs through Hugging Face Jobs. Total cloud cost for
+  the project, training included, was about $13.
+- **Multiple comparisons.** The 35 paired tests behind the claims below are corrected as one
+  family (Bonferroni threshold 0.05/35 = 0.0014; table in
+  [results/stats](results/stats/multiple_comparisons.md)). The text says where a claim does not
+  survive the correction.
 
 ## Results
 
+![Latency robustness vs reactivity for every execution mode](results/tradeoff/tradeoff.png)
 ![Success vs cube displacement](results/core/both/displacement.png)
 ![Success vs observation latency](results/core/both/delay.png)
 
@@ -69,20 +75,28 @@ latency of 0–400 ms, and a mid-episode displacement of the target of 2–6 cm.
 
 Findings that hold on both checkpoints:
 
-1. **Temporal ensembling makes ACT insensitive to latency** up to 400 ms (0 → 400 ms: p = 0.38 and
-   0.21). It rejects a moved target no better than full-chunk execution (at 6 cm: p = 0.53 and
-   0.10).
+1. **Temporal ensembling makes ACT insensitive to latency** up to 400 ms. From 0 to 400 ms its
+   success changes by −3.0 points (official) and +2.5 points (ours), and the 95% intervals exclude
+   a drop of more than 6.2 points. It copes with a moved target little better than full-chunk
+   execution: +6.5 and +2.5 points at 6 cm (n.s.), and the intervals exclude a gain of more than
+   13.4 points.
 2. **Replanning every 0.5 s is the only one of the five base modes that recovers from a 6 cm move.** On the same seeds it
    beats full chunk 97:11 and 106:10 (p < 1e-17). It also pays the largest latency penalty,
-   −17 to −20 points at 400 ms, and is worse than full chunk there (p < 0.02).
-3. **Replanning every 0.2 s collapses to about 6%, and latency makes it better** (6% → 26.5% at
-   200 ms, p < 1e-4).
+   −17 to −20 points at 400 ms (p < 1e-4). At 400 ms it falls below full chunk on our checkpoint
+   (−17.5 points, p = 6.5e-5). On the official checkpoint the gap is −11 points (p = 0.018), which
+   does not survive the correction.
+3. **Replanning every 0.2 s collapses to about 6%, and latency makes it better** (6–6.5% →
+   20.5–26.5% at 200 ms, p < 1e-4 on both checkpoints).
 4. **Ensembling's lack of reactivity comes from its default weights.** Weighting recent predictions
    (coefficient −0.05 instead of 0.01) raises success at 6 cm from 21–26.5% to 57.5–68% and keeps
-   the latency robustness. The cost is 8–11 points of nominal success.
+   the latency robustness. The estimated cost is 8–11 points of nominal success, which is not
+   significant after the correction. The useful range is narrow: at c = −0.1 and −0.2, success
+   without latency collapses to 23–25.5% and 1–3%.
 
-Two results depend on the checkpoint: whether full-chunk execution degrades with latency (official
-p < 0.001, ours p = 0.34), and how the modes rank without latency.
+One result depends on the checkpoint: full-chunk execution loses 12 points at 400 ms on the
+official checkpoint (p = 0.0004) but only 3.5 points on ours (p = 0.34). Without latency the modes
+also rank differently: ensembling is 10 points below full chunk on the official checkpoint and
+level on ours. That difference does not survive the correction.
 
 ## Why the modes fail
 
@@ -114,16 +128,27 @@ p < 0.001, ours p = 0.34), and how the modes rank without latency.
   | +0.01 (ACT default, favors old) | 71 / 74.5% | 26.5 / 21% | 68 / 77% |
   | 0 (uniform) | 71.5 / 78.5% | 36 / 33.5% | 70.5 / 78% |
   | −0.05 (favors recent) | 60 / 66.5% | **57.5 / 68%** | **71.5 / 80%** |
+  | −0.1 | 25.5 / 23% | 20.5 / 23.5% | 71.5 / 80% |
+  | −0.2 | 3 / 1% | 1.5 / 0% | 72.5 / 77.5% |
 
   - Favoring recent predictions restores reactivity: 21–26.5% → 57.5–68% at 6 cm
     (p < 1e-9, both models).
-  - It keeps the latency robustness (400 ms: n.s. against the default).
-  - It costs 8–11 points nominally (p = 0.012 and 0.072).
+  - It keeps the latency robustness (400 ms: +3.5 and +3.0 points against the default, n.s.).
+  - It costs an estimated 8–11 points nominally (p = 0.012 and 0.072, neither significant after
+    the correction).
   - At c = −0.05, ensembling beats replan 25 under 400 ms latency (143 vs 116 and 160 vs 108
-    successes, p < 0.001). Under displacement it is below replan 25 on the official checkpoint (115
-    vs 136, p = 0.007) and level on ours (136 vs 123, p = 0.11). Its worst case over the
-    three conditions is the best of any mode on our checkpoint (66.5%, against 54% for replan 25)
-    and ties replan 25 on the official one (57.5% vs 58%).
+    successes, p < 0.001). Under displacement the two do not differ significantly after the
+    correction (115 vs 136 on the official checkpoint, p = 0.007 uncorrected; 136 vs 123 on ours).
+    Its worst case over the three conditions is the best of any mode on our checkpoint (66.5%,
+    against 54% for replan 25) and ties replan 25 on the official one (57.5% vs 58%).
+  - Pushing further breaks it. On average the executed action comes from index 18.8 of the chunks
+    being averaged at c = −0.05, 9.5 at −0.1 and 4.5 at −0.2. Replanning every 10 and every 25
+    steps execute indices 4.5 and 12 on average. Without latency, −0.1 and −0.2 collapse to
+    23–25.5% and 1–3%. With 400 ms latency, time alignment shifts every executed index by 20, and
+    they succeed 71.5–80% of the time. This resembles the replan-10 pattern, but trajectories were
+    not logged for these runs, so the mechanism is not confirmed. Reactivity peaks between c = 0
+    and −0.1 (−0.05 vs −0.1 at 6 cm: p < 1e-15 on both checkpoints); other values in that range
+    were not tested.
 
 ## Limitations
 
@@ -132,6 +157,8 @@ p < 0.001, ours p = 0.34), and how the modes rank without latency.
   has inference jitter.
 - The displacement is a teleport, not a physical push.
 - GPU evaluation is reproducible only at the outcome level.
+- The ensembling coefficient was tested at five values (0.01, 0, −0.05, −0.1, −0.2), so the best
+  value is not known.
 
 ## Next steps
 

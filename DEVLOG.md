@@ -545,3 +545,136 @@ are paired against the default 0.01.
 - Data checks: 400 displaced episodes per model, 0 bad moves, 0 contacts before the move.
 
 The cloud total for the project so far is about $10.8.
+
+## 2026-09-28, evening: pre-publication pass
+
+Six items, approved together ("1-6都做"): (1) a headline trade-off figure, (2) a multiple-comparison
+check, (3) a clean-clone reproduction test, (4) license, citation and Hub cards, (5) an upstream fix
+for the async-environment bug, (6) a wider ensembling-coefficient sweep.
+
+### Item 6: ensembling coefficients −0.1 and −0.2 (jobs `6abb154252d0dbd7f1da87b1` official, `6abb154252d0dbd7f1da87b3` ours)
+
+`run_grid.sh` with `GRID=te_weights TECOEFFS="-0.1 -0.2"`, writing into the existing
+`te_weights_<model>` runs (new flag `--te-coeffs` / `TECOEFFS`). t4-medium, 1 h 40 min and
+1 h 42 min, about $2.0 together. Ensembling predicts at every step, so one 25-seed block takes
+14 min per worker; −0.02 was dropped to stay within budget.
+
+Data checks: 200 seeds per condition; 400 displaced episodes per model, 0 bad moves, 0 contacts
+before the move.
+
+| Coefficient | Nominal | 6 cm | 400 ms |
+|---|---|---|---|
+| −0.1 | 25.5 / 23.0 | 20.5 / 23.5 | 71.5 / 80.0 |
+| −0.2 | 3.0 / 1.0 | 1.5 / 0.0 | 72.5 / 77.5 |
+
+(official / ours, %; the other coefficients are in the earlier "Item 1, TE weights" table and in
+`results/tradeoff/te_coefficients.md`.)
+
+- **Too much recency weighting collapses the policy without latency, and latency revives it.**
+  With weights exp(−c·i), the executed action comes on average from chunk index 18.8 (c = −0.05),
+  9.5 (−0.1) and 4.5 (−0.2). Replan 10 and replan 25 execute indices 4.5 and 12 on average. Under
+  400 ms latency, time alignment adds 20 to every index, and −0.1 and −0.2 succeed 71.5–80% of the
+  time. This matches the replan-10 pattern. Trajectories were not logged, so the stall mechanism is
+  a hypothesis for these runs.
+- Reactivity to a moved cube peaks between c = 0 and −0.1. Only −0.05 was tested inside that range.
+- Possible follow-up (not run, about $0.4): log trajectories for c = −0.2 at 0 and 400 ms on 50
+  seeds per model to test the stall hypothesis.
+
+### Item 2: multiple comparisons (`scripts/multiple_comparisons.py` → `results/stats/`)
+
+- **Family.** Every paired test behind a claim in WRITEUP.md, on both checkpoints: 35 tests.
+- **Correction.** Chose Bonferroni (threshold 0.05/35 = 0.0014) as the verdict, and also report
+  Holm-adjusted p-values. Rejected Benjamini–Hochberg (FDR). The claims are confirmatory statements,
+  so family-wise control is the appropriate and more conservative standard.
+- **Intervals for paired differences.** First tried Wald intervals for matched pairs. Rejected
+  them because they disagree with the exact test: for our checkpoint vs the official one the Wald
+  interval was [−13.6, −0.4] points while the exact McNemar p was 0.054. Switched to a
+  Clopper–Pearson interval on the split of the discordant seeds, scaled by their share of all seeds
+  ([−13.2, +0.1]). It excludes zero exactly when p < 0.05. The code matches scipy's beta quantiles
+  and `binomtest` to five decimals.
+- **Verdicts.**
+  - Survive on both checkpoints: replan 25 beats full at 6 cm; replan 25's latency penalty;
+    replan 10 improves with latency; TE −0.05 beats the default at 6 cm and beats replan 25 at
+    400 ms; the three coefficient claims above.
+  - Survive on one checkpoint: replan 25 below full at 400 ms (ours only); full chunk's latency
+    penalty (official only, as expected for a checkpoint-dependent result); TE −0.05 below replan
+    25 at nominal (official only).
+  - Do not survive: TE vs full at nominal; TE −0.05's nominal cost (p = 0.012 / 0.072); TE −0.05
+    vs replan 25 at 6 cm.
+  - WRITEUP.md and README.md now say this. No-difference claims quote the paired difference with
+    its interval instead of a bare p-value.
+
+### Item 1: headline figure (`scripts/tradeoff.py` → `results/tradeoff/`)
+
+- x = success at 400 ms latency, y = success after a 6 cm move, one panel per checkpoint.
+  Temporal ensembling is a dashed path over c.
+- **Intervals left out of the figure.** With them drawn, labels collided and the cluster of points
+  near (70, 25) became unreadable. The caption states the largest 95% half-width (±7 points), and
+  `te_coefficients.md` and `summary.md` list every interval.
+- **Labeling.** Base modes are identified by a legend at the top, matching the delay and
+  displacement figures. Only the coefficient labels are drawn directly. Caption numbers are
+  computed from the data.
+- Placed at the top of README.md and of the Results section in WRITEUP.md.
+
+### Item 3: reproducibility
+
+- `REPO` and `MODEL` in the job scripts can now be overridden with `-e REPO=...`; the defaults are
+  unchanged.
+- **Bug found and fixed.** `DETERMINISTIC` in `run_grid.sh` did nothing: `chunk_eval.py` already
+  defaults to deterministic kernels, and the script only ever added `--deterministic`. Now
+  `DETERMINISTIC=0` passes `--no-deterministic`. No published run is affected; every `meta.json`
+  records `"deterministic": true`.
+- The "Reproduce" section of README.md was rewritten. It covers setup, the unit test, checkpoint
+  download and conversion, a two-episode evaluation, rebuilding the tables and figures from the Hub,
+  submitting a grid to Hugging Face Jobs, and the training command.
+- **Clean-clone test.** The README commands were run verbatim in a fresh clone, with the GitHub URL
+  replaced by the local path. The run took 3 min 16 s.
+  - The unit test passed 20/20. Our checkpoint downloaded and the official one converted.
+  - Two episodes on MPS gave the same outcomes as the CUDA runs for seeds 1000–1001 (a failure at
+    reward 2, then a success).
+  - The rebuilt `summary.md`, `summary.json` and figures are byte-identical to the committed ones.
+
+### Item 4: license, citation and Hub cards
+
+- The code is MIT-licensed (`LICENSE`). The model weights keep LeRobot's Apache-2.0: that is the
+  license on LeRobot's generated card, and the training data comes from LeRobot.
+- `CITATION.cff` passes `cffconvert --validate`.
+- `hub/model_card.md` replaces LeRobot's generated card, which suggested running the policy on a
+  real ALOHA robot. The new card:
+  - keeps the inputs and outputs, the training config and the citation;
+  - adds the checkpoint table, the study's results and the simulation eval command with the
+    `use_async_envs` workaround;
+  - notes that the model files at the repo root are the 100k checkpoint (same LFS sha256 as
+    `checkpoints/100000`).
+- `hub/dataset_card.md` documents the runs, condition names and episode fields, with a loading
+  snippet.
+
+### Item 5: upstream LeRobot fix (`~/grad/github/lerobot-upstream`, branch `fix/async-env-workers-import-package`, commit `40cb2a8`, not pushed)
+
+- **Bug.** `EnvConfig.create_envs()` builds an `AsyncVectorEnv` with `context="forkserver"`. The
+  workers never import the env package, so `gym.make()` raises `NamespaceNotFound` for gym_aloha.
+  `eval.use_async_envs` defaults to true, so `lerobot-eval` with a batch size above 1 crashes. This
+  study used `use_async_envs=false` throughout.
+- **Three versions of the fix.**
+  - v1 imported `package_name` unconditionally in the worker factory. It fixed the bug but broke two
+    existing tests whose configs use non-importable package names, so it was rejected.
+  - v2 imported only if the id was missing from the module-level `gym_registry`. The new test still
+    failed. Cause: cloudpickle serializes the nested `_make_one` by value together with the globals
+    it references, so `gym_registry` reached the worker as a snapshot of the parent's registry,
+    which already contains the id.
+  - v3 (committed) reads `gym.envs.registry` at call time, which resolves in the worker.
+- **Evidence.**
+  - `tests/envs`: 57 passed, 6 skipped. The new test fails without the fix.
+  - `pre-commit run -a` passes.
+  - Linux (HF job `6abb1a3152d0dbd7f1da88aa`, `lerobot-gpu` image, LeRobot 0.6.2): before the fix,
+    `NamespaceNotFound` and the new test fails; after, a 2-env `AsyncVectorEnv` resets and steps,
+    and the new test passes.
+  - No upstream issue or PR covers this.
+- **macOS.** With v3 the namespace error is gone, but the aloha workers then die while rendering.
+  Apple's OpenGL driver logs `buildPipelineState failed` in the forkserver children, and the parent
+  gets `EOFError`. This is a separate platform issue and was not investigated. The CartPole test
+  passes on macOS.
+- Opening the PR (fork `DiyunZ/lerobot`, push, `gh pr create`) waits for Diyun's go. LeRobot's
+  Community Review Policy asks contributors to review another open PR first.
+
+The cloud total for the project is about $12.9.
