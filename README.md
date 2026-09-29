@@ -18,7 +18,8 @@ explain the failure modes.
   (coefficient −0.05) raises success after a 6 cm move from 21–26.5% to 57.5–68%** and keeps the
   latency robustness, at an estimated cost of 8–11 points of nominal success (not significant
   after correction). The useful range is narrow: at −0.1 and −0.2, success without latency
-  collapses to 23–25.5% and 1–3%.
+  collapses to 23–25.5% and 1–3%. At −0.2 the arm stalls at about 15% of its normal joint speed, and
+  400 ms of latency revives it.
 - **Replanning every 0.5 s** is the only one of the five base modes that recovers from a 6 cm move:
   61.5–68% success, against 18.5–26.5% for full chunks and default ensembling. It pays for this
   with the largest latency penalty (−17 to −20 points at 400 ms).

@@ -37,6 +37,7 @@ The task is ALOHA transfer cube (gym-aloha), 400 steps at 50 Hz. The checkpoints
 | `noise_floor` | official | Repeated runs that measure GPU nondeterminism |
 | `core_official`, `core_ours100k` | official, ours at 100k | 5 execution modes × (5 latencies + 3 displacements), seeds 1000–1199 |
 | `diag_official`, `diag_ours100k` | official, ours at 100k | Arm trajectories for the first 200 steps (field `trajectory`), seeds 1000–1049 |
+| `diag_te_official`, `diag_te_ours100k` | official, ours at 100k | The same trajectories for temporal ensembling: c = 0.01 without latency, c = −0.2 at 0 and 400 ms |
 | `te_weights_official`, `te_weights_ours100k` | official, ours at 100k | Temporal ensembling with coefficients 0, −0.05, −0.1 and −0.2, seeds 1000–1199 |
 
 ## Condition names

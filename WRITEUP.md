@@ -50,7 +50,7 @@ latency of 0–400 ms, and a mid-episode displacement of the target of 2–6 cm.
   `lerobot-eval` itself.
 - **Statistics.** Each condition uses the same 200 seeds, which allows paired exact McNemar
   tests; intervals are 95% Wilson intervals. The main grid is 40 conditions × 2 checkpoints =
-  16,000 episodes. On top of that come 4,800 episodes for the ensembling-weight test and 500
+  16,000 episodes. On top of that come 4,800 episodes for the ensembling-weight test and 800
   with logged arm trajectories, all on T4 GPUs through Hugging Face Jobs. Total cloud cost for
   the project, training included, was about $13.
 - **Multiple comparisons.** The 35 paired tests behind the claims below are corrected as one
@@ -145,10 +145,15 @@ level on ours. That difference does not survive the correction.
     being averaged at c = −0.05, 9.5 at −0.1 and 4.5 at −0.2. Replanning every 10 and every 25
     steps execute indices 4.5 and 12 on average. Without latency, −0.1 and −0.2 collapse to
     23–25.5% and 1–3%. With 400 ms latency, time alignment shifts every executed index by 20, and
-    they succeed 71.5–80% of the time. This resembles the replan-10 pattern, but trajectories were
-    not logged for these runs, so the mechanism is not confirmed. Reactivity peaks between c = 0
-    and −0.1 (−0.05 vs −0.1 at 6 cm: p < 1e-15 on both checkpoints); other values in that range
-    were not tested.
+    they succeed 71.5–80% of the time. Reactivity peaks between c = 0 and −0.1 (−0.05 vs −0.1 at
+    6 cm: p < 1e-15 on both checkpoints); other values in that range were not tested.
+  - **At c = −0.2 the arm stalls; it does not dither.** Trajectories logged over 50 seeds per model
+    show that without latency the arm moves at 14–15% of default ensembling's joint speed. It
+    reverses direction rarely (0.02 of steps, against 0.17 for replan 10), and at 1.5 s the gripper
+    is still 0.34–0.35 m from the cube, where it started. With 400 ms latency, speed and approach
+    return to default levels (0.15–0.16 m at 1.5 s). Replan 10 and ensembling at −0.2 both execute
+    only the start of freshly predicted chunks. Averaging removes replan 10's back-and-forth but not
+    its lack of progress.
 
 ## Limitations
 

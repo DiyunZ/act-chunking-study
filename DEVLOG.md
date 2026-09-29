@@ -678,3 +678,37 @@ before the move.
   Community Review Policy asks contributors to review another open PR first.
 
 The cloud total for the project is about $12.9.
+
+### Item 6 follow-up: arm trajectories at c = −0.2 (jobs `6abb38e56b030d633f6a2ac1` official, `6abb38e56b030d633f6a2ac3` ours)
+
+Approved by Diyun ("做") to test the stall hypothesis. `run_grid.sh` with `GRID=te_weights
+TECOEFFS="0.01 -0.2" ONLY="te_d00_m0 te-0.2_d00_m0 te-0.2_d20_m0" SEEDS=1000:1050 LOGTRAJ=200`,
+writing to new runs `diag_te_<model>`. The default-coefficient condition was added as a reference
+at no extra time: its blocks ran in the same round. t4-medium, about 16 min per job including
+queueing, about $0.3 in total.
+
+Outcomes match the earlier runs on the same seeds in 45–50 of 50 episodes per condition, the known
+GPU nondeterminism.
+
+Median over 50 episodes, steps 0–150 (`scripts/analyze_trajectories.py`, `results/analysis/trajectories.json`), official / ours:
+
+| Condition | Speed (rad/step) | Efficiency | Reversals | Distance at 150 (m) | Success |
+|---|---|---|---|---|---|
+| TE c = 0.01, 0 ms | 0.0100 / 0.0105 | 0.72 / 0.70 | 0.012 / 0.013 | 0.158 / 0.155 | 72 / 70% |
+| TE c = −0.2, 0 ms | **0.0015 / 0.0015** | 0.39 / 0.32 | 0.017 / 0.022 | **0.342 / 0.347** | 0 / 0% |
+| TE c = −0.2, 400 ms | 0.0098 / 0.0111 | 0.68 / 0.65 | 0.038 / 0.036 | 0.163 / 0.153 | 66 / 74% |
+| replan 10, 0 ms (earlier run) | 0.0046 / 0.0052 | 0.15 / 0.10 | 0.171 / 0.170 | 0.340 / 0.347 | 8 / 10% |
+
+**Conclusion: the hypothesis was only partly right.**
+- Like replan 10, ensembling at −0.2 never approaches the cube, and latency revives it.
+- The kinematics differ. Ensembling at −0.2 stalls: it moves at 14–15% of default ensembling's
+  speed and rarely reverses direction. Replan 10 dithers: it moves at about 40% of full-chunk speed
+  and reverses on 17% of steps.
+- Both execute only the start of freshly predicted chunks, and averaging removes the back-and-forth
+  but not the lack of progress.
+- Why the start of a chunk carries so little progress in closed loop was not tested. The chunk
+  profile on demonstration frames (first 10 actions only 8–21% slower) was measured while the arm
+  was already moving.
+
+The WRITEUP and README now state the stall result instead of the hypothesis. The dataset card lists
+the new runs. Trajectory episodes in total: 800. The cloud total for the project is about $13.2.

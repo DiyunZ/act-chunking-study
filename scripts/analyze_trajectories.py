@@ -20,7 +20,8 @@ from pathlib import Path
 import numpy as np
 
 T_END = 150
-ORDER = ["full_d00_m0", "full_d10_m0", "replan25_d00_m0", "replan10_d00_m0", "replan10_d10_m0"]
+ORDER = ["full_d00_m0", "full_d10_m0", "replan25_d00_m0", "replan10_d00_m0", "replan10_d10_m0",
+         "te_d00_m0", "te-0.2_d00_m0", "te-0.2_d20_m0"]
 
 
 def episode_metrics(traj: list[list[float]]) -> dict | None:
