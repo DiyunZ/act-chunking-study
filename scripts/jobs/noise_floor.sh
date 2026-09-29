@@ -11,7 +11,7 @@
 set -euo pipefail
 export PYTHONUNBUFFERED=1
 cd /lerobot
-REPO=FTG64/act-chunking-study
+REPO=${REPO:-FTG64/act-chunking-study}  # dataset repo holding code/scripts and results; override with -e REPO=...
 STUDY=/tmp/study
 OUT=/tmp/noise_floor
 mkdir -p "$OUT"

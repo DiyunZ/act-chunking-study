@@ -17,8 +17,8 @@
 set -euo pipefail
 export PYTHONUNBUFFERED=1
 cd /lerobot
-REPO=FTG64/act-chunking-study
-MODEL=FTG64/act_aloha_transfer_cube
+REPO=${REPO:-FTG64/act-chunking-study}  # dataset repo holding code/scripts and results; override with -e REPO=...
+MODEL=${MODEL:-FTG64/act_aloha_transfer_cube}  # model repo with our checkpoints; override with -e MODEL=...
 STUDY=/tmp/study
 WORKERS=7
 

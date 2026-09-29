@@ -3,6 +3,8 @@ lerobot/
 # Training outputs, checkpoints and eval videos (large; models go to the Hugging Face Hub)
 outputs/
 checkpoints/
+# Local example runs from the README
+out/
 *.mp4
 !results/**/*.mp4
 .DS_Store

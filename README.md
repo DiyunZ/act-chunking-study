@@ -64,24 +64,67 @@ order.
 
 ## Reproduce
 
+Setup. LeRobot is pinned to the commit used for every run:
+
 ```bash
 brew install uv ffmpeg   # macOS; on Linux, install ffmpeg with your package manager
+git clone https://github.com/DiyunZ/act-chunking-study.git && cd act-chunking-study
 git clone https://github.com/huggingface/lerobot.git lerobot
 cd lerobot && git checkout e595b7902714ba51f91e47523f66f89c5181b649
 uv python install 3.12 && uv sync --locked --python 3.12 --extra training --extra aloha
 source .venv/bin/activate && cd ..
-
-# Unit test (no simulator)
-python scripts/test_chunk_executor.py
-
-# Evaluate a checkpoint locally on a few seeds, e.g. replanning every 25 steps with a 6 cm cube move
-python scripts/chunk_eval.py --checkpoint <pretrained_model dir> --grid core --only replan25_d00_m6 \
-  --seeds 1000:1010 --block 5 --n-envs 5 --workers 2 --device mps --out out/example
 ```
 
-The full grids ran on Hugging Face Jobs (`t4-medium`). See `scripts/jobs/run_grid.sh` for the exact
-submit command and settings. They are deterministic kernels, displacement window 50–75, 7 workers × 5 envs, and
-200 seeds per condition.
+Check the harness, then run a two-episode evaluation (a few minutes on a laptop):
+
+```bash
+python scripts/test_chunk_executor.py   # time-alignment unit test, no simulator
+
+# Our 100k-step checkpoint from the Hub...
+hf download FTG64/act_aloha_transfer_cube --revision 100000 \
+  --include "checkpoints/100000/pretrained_model/*" --local-dir checkpoints/ours
+# ...or the official checkpoint, converted to LeRobot's current processor format
+python lerobot/src/lerobot/processor/migrate_policy_normalization.py \
+  --pretrained-path lerobot/act_aloha_sim_transfer_cube_human --output-dir checkpoints/official
+
+# Replan every 25 steps with a 6 cm cube move (use --device cuda or cpu off macOS)
+python scripts/chunk_eval.py --checkpoint checkpoints/ours/checkpoints/100000/pretrained_model \
+  --grid core --only replan25_d00_m6 --seeds 1000:1002 --block 2 --n-envs 2 --workers 1 \
+  --device mps --out out/example
+```
+
+Rebuild the tables and figures from the published per-episode results:
+
+```bash
+hf download FTG64/act-chunking-study --repo-type dataset --include "results/core_*" --local-dir outputs/hub
+uv run --no-project --with numpy --with matplotlib python scripts/summarize.py \
+  --runs outputs/hub/results/core_ours100k outputs/hub/results/core_official --out results/core/both
+```
+
+Run a full grid on Hugging Face Jobs. Upload the scripts to your own dataset repo first; results
+sync back to it:
+
+```bash
+hf upload <you>/act-chunking-study scripts code/scripts --repo-type dataset
+hf jobs run --detach --flavor t4-medium --timeout 5h --secrets HF_TOKEN --name act-core-official \
+  -e REPO=<you>/act-chunking-study -e CKPT=official -e LABEL=official -e RUN=core_official \
+  -e GRID=core -e SEEDS=1000:1200 huggingface/lerobot-gpu:latest bash -c "$(cat scripts/jobs/run_grid.sh)"
+```
+
+One core grid (40 conditions × 200 seeds) takes about 4 h on `t4-medium`, roughly $2.40. A job
+resubmitted with the same `RUN` skips finished tasks. Every grid used deterministic GPU kernels, the
+displacement window 50–75, and 7 workers × 5 environments. `scripts/jobs/run_grid.sh` lists all
+settings.
+
+Training. This is the exact command of the 100k-step run on `l4x1`:
+
+```bash
+lerobot-train --dataset.repo_id=lerobot/aloha_sim_transfer_cube_human --dataset.video_backend=pyav \
+  --policy.type=act --policy.repo_id=<you>/act_aloha_transfer_cube --batch_size=8 --steps=100000 \
+  --save_freq=25000 --log_freq=200 --num_workers=4 --save_checkpoint_to_hub=true \
+  --wandb.enable=false --seed=1000 --output_dir=outputs/train/act_aloha_transfer_cube \
+  --job_name=act_aloha_transfer_cube --job.target=l4x1 --job.timeout=8h --job.detach=true
+```
 
 ## Acknowledgments
 
